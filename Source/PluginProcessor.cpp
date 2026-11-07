@@ -27,9 +27,10 @@ AudioProcessorValueTreeState::ParameterLayout LiveVoiceProcessor::createLayout()
     v.push_back (std::make_unique<AudioParameterChoice> (ParameterID { ParamID::mode, 1 }, "Mode", modes, 1));
     v.push_back (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::strength, 1 }, "Strength", NormalisableRange<float> (0.0f, 1.0f), 0.7f,
                                                         AudioParameterFloatAttributes().withStringFromValueFunction ([] (float x, int) { return String (roundToInt (x * 100)) + " %"; })));
-    v.push_back (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::pitch, 1 }, "Pitch", NormalisableRange<float> (-12.0f, 12.0f, 0.01f), 0.0f,
+    // 0.11: "pitch" (note shift) is legacy and ignored; the PITCH knob in the UI is the "formant" parameter (voice size)
+    v.push_back (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::pitch, 1 }, "Note Shift (legacy)", NormalisableRange<float> (-12.0f, 12.0f, 0.01f), 0.0f,
                                                         AudioParameterFloatAttributes().withStringFromValueFunction (semis)));
-    v.push_back (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::formant, 1 }, "Formant", NormalisableRange<float> (-12.0f, 12.0f, 0.01f), 0.0f,
+    v.push_back (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::formant, 1 }, "Pitch", NormalisableRange<float> (-12.0f, 12.0f, 0.01f), 0.0f,
                                                         AudioParameterFloatAttributes().withStringFromValueFunction (semis)));
     v.push_back (std::make_unique<AudioParameterBool>  (ParameterID { ParamID::sfxOn, 1 }, "SFX", false));
     v.push_back (std::make_unique<AudioParameterChoice> (ParameterID { ParamID::sfxType, 1 }, "SFX Type", sfx, 0));
@@ -61,7 +62,7 @@ void LiveVoiceProcessor::processBlock (AudioBuffer<float>& buf, MidiBuffer&)
     q.voiceOn   = p[0]->load() > 0.5f;
     q.mode      = (int) p[1]->load();
     q.strength  = p[2]->load();
-    q.pitch     = p[3]->load();
+    q.pitch     = 0.0f;   // legacy note shift: removed in 0.11 (sounded hissy on speech), PITCH = voice size (formant)
     q.formant   = p[4]->load();
     q.sfxOn     = p[5]->load() > 0.5f;
     q.sfxType   = (int) p[6]->load();
@@ -201,8 +202,8 @@ void LiveVoiceProcessor::installFactoryPresets()
         { "Clean Host",       0, 0.60f,  0.0f,  0.0f, false, 0, 0.50f },
         { "Radio Night",      1, 0.85f,  0.0f,  0.0f, false, 0, 0.50f },
         { "Club MC",          2, 0.85f,  0.0f,  0.0f, true,  2, 0.30f },
-        { "Deep Voice",       3, 0.75f, -3.0f,  0.0f, false, 0, 0.50f },
-        { "Brutal Announcer", 1, 0.90f, -4.0f, -1.0f, true,  3, 0.55f },
+        { "Deep Voice",       3, 0.75f,  0.0f, -4.0f, false, 0, 0.50f },
+        { "Brutal Announcer", 1, 0.90f,  0.0f, -5.0f, true,  3, 0.55f },
         { "Echo Hype",        2, 0.80f,  0.0f,  0.0f, true,  2, 0.70f },
     };
     auto dir = presetRoot().getChildFile ("Factory");
@@ -210,7 +211,9 @@ void LiveVoiceProcessor::installFactoryPresets()
     for (auto& f : factory)
     {
         auto file = dir.getChildFile (String (f.name) + kPresetExt);
-        if (file.existsAsFile()) continue;
+        if (file.existsAsFile())
+            if (auto old = XmlDocument::parse (file))
+                if (old->getStringAttribute ("version") == LIVEVOICE_LABEL) continue;   // factory files are refreshed on update
         XmlElement xml ("LIVEVOICEPRESET");
         xml.setAttribute ("version", LIVEVOICE_LABEL);
         xml.setAttribute ("name", f.name);

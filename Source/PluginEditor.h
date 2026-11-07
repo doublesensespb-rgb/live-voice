@@ -120,7 +120,7 @@ private:
     juce::TextButton modeBtn[4];
     juce::Slider strengthKnob;
     // pitch
-    juce::Slider pitchKnob, formantKnob;
+    juce::Slider pitchKnob;   // PITCH = voice size (parameter "formant")
     juce::TextButton quick[4];
     // sfx
     Lamp sfxLamp;
@@ -128,7 +128,7 @@ private:
     juce::TextButton prevBtn { "<" }, nextBtn { ">" };
     juce::Slider amountKnob;
 
-    std::unique_ptr<SA> aOut, aStrength, aPitch, aFormant, aAmount;
+    std::unique_ptr<SA> aOut, aStrength, aPitch, aAmount;
     std::unique_ptr<BA> aMute, aVoice, aSfx;
 
     juce::Rectangle<int> voicePanel, pitchPanel, sfxPanel, header;

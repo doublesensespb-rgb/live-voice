@@ -1,6 +1,6 @@
 # LIVE VOICE (repo: live-voice) — guide for AI agents and developers
 
-Read this whole file before changing anything. Current version: **0.1** (`set(LIVEVOICE_LABEL "0.1")` + `project(... VERSION 0.1.0)` in CMakeLists.txt).
+Read this whole file before changing anything. Current version: **0.11** (`set(LIVEVOICE_LABEL "0.11")` + `project(... VERSION 0.1.1)` in CMakeLists.txt).
 
 ## 1. Product
 
@@ -35,6 +35,7 @@ Audio is processed in 32-sample chunks. Modes: NATURAL, RADIO, CLUB, DEEP (`kMod
   NO violet, NO pink, NO neon.
 - Latency matters a lot (live use). Never add processing that adds latency to the direct path.
 - Never rename parameter IDs (`ParamID` in PluginProcessor.h): presets and the saved app state use them.
+  NOTE: the UI "PITCH" knob = parameter `formant`; parameter `pitch` is the legacy note shift (ignored).
 
 ## 3. Code map
 | File | What |
@@ -62,6 +63,10 @@ run under `Xvfb :99`.
 ## 5. History
 v0.1: first build. 4 voice modes, PITCH ±12 + FORMANT, SFX WIDE/SHIMMER/ECHO THROW/BRUTAL, zero-latency direct path,
 auto level, presets (6 factory), UNDO, GRAPHITE design.
+v0.11: the big PITCH knob now drives the parameter `formant` (voice size: the owner found it does the "lower voice" he wants);
+the note shift (param `pitch`) is legacy: kept for old states, forced to 0 in processBlock, not in the UI (on speech it barely
+changed anything and sounded hissy with the 30 ms block). FORMANT row removed. Factory presets are rewritten when their
+`version` differs from the app's label.
 
 ## 6. How it was made
 Built by the owner talking to Claude (Anthropic) in a claude.ai session; the owner described, Claude wrote the code,

@@ -506,7 +506,7 @@ LiveVoiceEditor::LiveVoiceEditor (LiveVoiceProcessor& p) : AudioProcessorEditor 
     setupKnob (pitchKnob, true);
     pitchKnob.getProperties().set ("ticks", 25);
     pitchKnob.getProperties().set ("majors", true);
-    aPitch = std::make_unique<SA> (st, ParamID::pitch, pitchKnob);
+    aPitch = std::make_unique<SA> (st, ParamID::formant, pitchKnob);
     pitchKnob.setDoubleClickReturnValue (true, 0.0);
     const float qv[4] = { -12.0f, -5.0f, 0.0f, 5.0f };
     const char* qt[4] = { "-12", "-5", "0", "+5" };
@@ -515,12 +515,9 @@ LiveVoiceEditor::LiveVoiceEditor (LiveVoiceProcessor& p) : AudioProcessorEditor 
         quick[i].setButtonText (qt[i]);
         quick[i].getProperties().set ("kind", "quick");
         const float v = qv[i];
-        quick[i].onClick = [this, v] { setParam (ParamID::pitch, v); };
+        quick[i].onClick = [this, v] { setParam (ParamID::formant, v); };
         addAndMakeVisible (quick[i]);
     }
-    setupKnob (formantKnob, false);
-    aFormant = std::make_unique<SA> (st, ParamID::formant, formantKnob);
-    formantKnob.setDoubleClickReturnValue (true, 0.0);
 
     // sfx
     addAndMakeVisible (sfxLamp);
@@ -623,7 +620,7 @@ void LiveVoiceEditor::refreshButtons()
 {
     const int m = (int) getParam (ParamID::mode);
     for (int i = 0; i < 4; ++i) modeBtn[i].setToggleState (i == m, dontSendNotification);
-    const float pv = getParam (ParamID::pitch);
+    const float pv = getParam (ParamID::formant);
     const float qv[4] = { -12.0f, -5.0f, 0.0f, 5.0f };
     for (int i = 0; i < 4; ++i) quick[i].setToggleState (std::abs (pv - qv[i]) < 0.05f, dontSendNotification);
     sfxScreen.type = (int) getParam (ParamID::sfxType);
@@ -659,9 +656,9 @@ bool LiveVoiceEditor::keyPressed (const KeyPress& k)
     if (k == KeyPress::spaceKey) { setParam (ParamID::voiceOn, getParam (ParamID::voiceOn) > 0.5f ? 0.0f : 1.0f); return true; }
     if (k.getTextCharacter() == 'm' || k.getTextCharacter() == 'M' || k.getTextCharacter() == L'ь' || k.getTextCharacter() == L'Ь')
     { setParam (ParamID::mute, getParam (ParamID::mute) > 0.5f ? 0.0f : 1.0f); return true; }
-    if (k == KeyPress::upKey)   { setParam (ParamID::pitch, jmin (12.0f, std::round (getParam (ParamID::pitch)) + 1.0f)); return true; }
-    if (k == KeyPress::downKey) { setParam (ParamID::pitch, jmax (-12.0f, std::round (getParam (ParamID::pitch)) - 1.0f)); return true; }
-    if (k.getTextCharacter() == '0') { setParam (ParamID::pitch, 0.0f); return true; }
+    if (k == KeyPress::upKey)   { setParam (ParamID::formant, jmin (12.0f, std::round (getParam (ParamID::formant)) + 1.0f)); return true; }
+    if (k == KeyPress::downKey) { setParam (ParamID::formant, jmax (-12.0f, std::round (getParam (ParamID::formant)) - 1.0f)); return true; }
+    if (k.getTextCharacter() == '0') { setParam (ParamID::formant, 0.0f); return true; }
     return false;
 }
 
@@ -702,7 +699,7 @@ void LiveVoiceEditor::paint (Graphics& g)
 
     // ---- PITCH ----
     caption (g, "PITCH", Rectangle<int> (pitchPanel.getX() + 22, pitchPanel.getY() + 16, 120, 24), Justification::centredLeft, Palette::text, 14.0f);
-    const float pv = getParam (ParamID::pitch);
+    const float pv = getParam (ParamID::formant);
     g.setColour (std::abs (pv) < 0.05f ? Palette::text : Palette::glow);
     g.setFont (uiFont (24.0f, true, 0.02f));
     g.drawText (semis (pv), Rectangle<int> (pitchPanel.getRight() - 182, pitchPanel.getY() + 12, 160, 32), Justification::centredRight);
@@ -722,19 +719,10 @@ void LiveVoiceEditor::paint (Graphics& g)
         caption (g, "LOWER", Rectangle<int> ((int) (c.x - rr - 40), (int) (c.y + rr * 0.80f), 80, 16), Justification::centred, Palette::textDim, 10.5f);
         caption (g, "HIGHER", Rectangle<int> ((int) (c.x + rr - 40), (int) (c.y + rr * 0.80f), 80, 16), Justification::centred, Palette::textDim, 10.5f);
     }
-    // formant row
-    {
-        auto fr = Rectangle<int> (pitchPanel.getX() + 22, formantKnob.getY(), pitchPanel.getWidth() - 44, formantKnob.getHeight());
-        g.setColour (Colours::white.withAlpha (0.05f));
-        g.drawLine ((float) fr.getX(), (float) fr.getY() - 12.0f, (float) fr.getRight(), (float) fr.getY() - 12.0f, 1.0f);
-        caption (g, "FORMANT", Rectangle<int> (fr.getX(), fr.getCentreY() - 19, 120, 18), Justification::centredLeft, Palette::label, 12.0f);
-        g.setColour (Palette::textDim); g.setFont (uiFont (11.0f));
-        g.drawText ("giant  <  >  toon", Rectangle<int> (fr.getX(), fr.getCentreY() + 2, 120, 16), Justification::centredLeft);
-        g.setColour (Palette::accent); g.setFont (uiFont (13.0f, true));
-        g.drawText (semis (getParam (ParamID::formant)), fr.withLeft (formantKnob.getRight() + 10), Justification::centredLeft);
-        g.setColour (Palette::textDim); g.setFont (uiFont (11.0f));
-        g.drawText ("dbl-click = reset", fr.withLeft (fr.getRight() - 110), Justification::centredRight);
-    }
+    // hint under the quick buttons
+    g.setColour (Palette::textDim); g.setFont (uiFont (11.5f));
+    g.drawText ("double-click = normal voice      UP / DOWN = one step",
+                Rectangle<int> (pitchPanel.getX(), quick[0].getBottom() + 26, pitchPanel.getWidth(), 18), Justification::centred);
 
     // ---- SFX ----
     caption (g, "SFX", Rectangle<int> (sfxPanel.getX(), sfxPanel.getY() + 16, sfxPanel.getWidth(), 24), Justification::centred,
@@ -746,7 +734,7 @@ void LiveVoiceEditor::paint (Graphics& g)
     // footer: shortcuts
     g.setColour (Palette::textDim.withAlpha (0.8f));
     g.setFont (uiFont (11.0f));
-    g.drawText ("SPACE  voice on/off      M  mute      UP / DOWN  pitch      0  reset pitch      CTRL+Z  undo      CTRL+S  save preset",
+    g.drawText ("SPACE  voice on/off      M  mute      UP / DOWN  pitch      0  normal voice      CTRL+Z  undo      CTRL+S  save preset",
                 Rectangle<int> (0, getHeight() - 26, getWidth(), 18), Justification::centred);
 }
 
@@ -778,10 +766,9 @@ void LiveVoiceEditor::resized()
     strengthKnob.setBounds (Rectangle<int> (104, 104).withCentre ({ voicePanel.getCentreX(), voicePanel.getY() + 368 }));
 
     // pitch
-    pitchKnob.setBounds (Rectangle<int> (216, 216).withCentre ({ pitchPanel.getCentreX(), pitchPanel.getY() + 178 }));
+    pitchKnob.setBounds (Rectangle<int> (236, 236).withCentre ({ pitchPanel.getCentreX(), pitchPanel.getY() + 196 }));
     const int qw = 62, qg = 10, qx = pitchPanel.getCentreX() - (4 * qw + 3 * qg) / 2;
-    for (int i = 0; i < 4; ++i) quick[i].setBounds (qx + i * (qw + qg), pitchPanel.getY() + 318, qw, 28);
-    formantKnob.setBounds (pitchPanel.getCentreX() - 26, pitchPanel.getBottom() - 74, 52, 52);
+    for (int i = 0; i < 4; ++i) quick[i].setBounds (qx + i * (qw + qg), pitchPanel.getY() + 368, qw, 30);
 
     // sfx
     sfxLamp.setBounds (sfxPanel.getX() + 14, sfxPanel.getY() + 12, 30, 30);

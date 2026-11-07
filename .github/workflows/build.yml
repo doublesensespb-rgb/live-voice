@@ -1,0 +1,89 @@
+name: Build
+
+# Runs on every push to main (the owner approves changes before they are pushed) and by hand.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: DSP tests
+        run: |
+          g++ -std=c++17 -O2 -ISource -Ithird_party test/dsp_test.cpp -o dsptest
+          ./dsptest
+
+  windows:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get JUCE
+        run: git clone --depth 1 --branch 8.0.10 https://github.com/juce-framework/JUCE.git JUCE
+
+      - name: Configure
+        run: cmake -B build -A x64
+
+      - name: Build
+        run: cmake --build build --config Release --parallel --target LiveVoice_Standalone Snapshot DspTest
+
+      - name: DSP tests (MSVC)
+        shell: pwsh
+        run: |
+          $t = Get-ChildItem -Recurse build -Filter DspTest.exe | Select-Object -First 1
+          & $t.FullName
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Render UI preview
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force shots | Out-Null
+          $exe = Get-ChildItem -Recurse build/Snapshot_artefacts -Filter Snapshot.exe | Select-Object -First 1
+          & $exe.FullName "$PWD/shots"
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $label = (Select-String -Path CMakeLists.txt -Pattern 'set\(LIVEVOICE_LABEL "([^"]+)"\)').Matches[0].Groups[1].Value
+          New-Item -ItemType Directory -Force out | Out-Null
+          Copy-Item "build/LiveVoice_artefacts/Release/Standalone/LIVE VOICE.exe" out/
+          Copy-Item "docs/README-RU.txt" out/
+          Compress-Archive -Path out/* -DestinationPath "LIVE-VOICE-$label-Windows.zip" -Force
+          Get-ChildItem *.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: win
+          path: |
+            LIVE-VOICE-*-Windows.zip
+            shots/*.png
+
+  publish:
+    needs: windows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: art
+      - name: Publish to builds branch
+        run: |
+          git clone --depth 1 --branch builds "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" pub || mkdir pub
+          rm -rf pub/.git
+          find art -name '*.zip' -exec cp {} pub/ \;
+          mkdir -p pub/shots && find art -name '*.png' -exec cp {} pub/shots/ \;
+          ls -R pub
+          cd pub
+          git init -q -b builds
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Build ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" builds

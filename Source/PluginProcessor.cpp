@@ -10,8 +10,8 @@ LiveVoiceProcessor::LiveVoiceProcessor()
       apvts (*this, &undo, "LIVEVOICE", createLayout())
 {
     const char* ids[] = { ParamID::voiceOn, ParamID::mode, ParamID::strength, ParamID::pitch, ParamID::formant,
-                          ParamID::sfxOn, ParamID::sfxType, ParamID::sfxAmount, ParamID::mute, ParamID::output };
-    for (int i = 0; i < 10; ++i) p[i] = apvts.getRawParameterValue (ids[i]);
+                          ParamID::sfxOn, ParamID::sfxType, ParamID::sfxAmount, ParamID::mute, ParamID::output, ParamID::clipOn };
+    for (int i = 0; i < 11; ++i) p[i] = apvts.getRawParameterValue (ids[i]);
     installFactoryPresets();
 }
 
@@ -39,6 +39,7 @@ AudioProcessorValueTreeState::ParameterLayout LiveVoiceProcessor::createLayout()
     v.push_back (std::make_unique<AudioParameterBool>  (ParameterID { ParamID::mute, 1 }, "Mute", false));
     v.push_back (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::output, 1 }, "Output", NormalisableRange<float> (-24.0f, 12.0f, 0.1f), 0.0f,
                                                         AudioParameterFloatAttributes().withStringFromValueFunction ([] (float x, int) { return String (x, 1) + " dB"; })));
+    v.push_back (std::make_unique<AudioParameterBool>  (ParameterID { ParamID::clipOn, 1 }, "Clip", false));
     return { v.begin(), v.end() };
 }
 
@@ -69,6 +70,7 @@ void LiveVoiceProcessor::processBlock (AudioBuffer<float>& buf, MidiBuffer&)
     q.sfxAmount = p[7]->load();
     q.mute      = p[8]->load() > 0.5f;
     q.outDb     = p[9]->load();
+    q.clipOn    = p[10]->load() > 0.5f;
     engine.setParams (q);
 
     const int n = buf.getNumSamples();
@@ -112,7 +114,7 @@ namespace
 {
     const char* kPresetExt = ".lvpreset";
     const char* kParamIds[] = { ParamID::voiceOn, ParamID::mode, ParamID::strength, ParamID::pitch, ParamID::formant,
-                                ParamID::sfxOn, ParamID::sfxType, ParamID::sfxAmount, ParamID::output };   // mute is never stored
+                                ParamID::sfxOn, ParamID::sfxType, ParamID::sfxAmount, ParamID::output, ParamID::clipOn };   // mute is never stored
     String safeName (const String& s)
     {
         return File::createLegalFileName (s.trim()).substring (0, 60);
@@ -196,15 +198,15 @@ void LiveVoiceProcessor::initSound()
 
 void LiveVoiceProcessor::installFactoryPresets()
 {
-    struct F { const char* name; int mode; float strength, pitch, formant; bool sfx; int type; float amount; };
+    struct F { const char* name; int mode; float strength, pitch, formant; bool sfx; int type; float amount; bool clip; };
     // modes: 0 NATURAL 1 RADIO 2 CLUB 3 DEEP / sfx: 0 WIDE 1 SHIMMER 2 ECHO THROW 3 BRUTAL
     static const F factory[] = {
-        { "Clean Host",       0, 0.60f,  0.0f,  0.0f, false, 0, 0.50f },
-        { "Radio Night",      1, 0.85f,  0.0f,  0.0f, false, 0, 0.50f },
-        { "Club MC",          2, 0.85f,  0.0f,  0.0f, true,  2, 0.30f },
-        { "Deep Voice",       3, 0.75f,  0.0f, -4.0f, false, 0, 0.50f },
-        { "Brutal Announcer", 1, 0.90f,  0.0f, -5.0f, true,  3, 0.55f },
-        { "Echo Hype",        2, 0.80f,  0.0f,  0.0f, true,  2, 0.70f },
+        { "Clean Host",       0, 0.60f,  0.0f,  0.0f, false, 0, 0.50f, false },
+        { "Radio Night",      1, 0.85f,  0.0f,  0.0f, false, 0, 0.50f, true  },
+        { "Club MC",          2, 0.85f,  0.0f,  0.0f, true,  2, 0.30f, true  },
+        { "Deep Voice",       3, 0.75f,  0.0f, -4.0f, false, 0, 0.50f, false },
+        { "Brutal Announcer", 1, 0.90f,  0.0f, -5.0f, true,  3, 0.55f, true  },
+        { "Echo Hype",        2, 0.80f,  0.0f,  0.0f, true,  2, 0.70f, false },
     };
     auto dir = presetRoot().getChildFile ("Factory");
     if (! dir.createDirectory()) return;
@@ -226,6 +228,7 @@ void LiveVoiceProcessor::installFactoryPresets()
         xml.setAttribute (ParamID::sfxType, f.type);
         xml.setAttribute (ParamID::sfxAmount, f.amount);
         xml.setAttribute (ParamID::output, 0.0);
+        xml.setAttribute (ParamID::clipOn, f.clip ? 1.0 : 0.0);
         xml.writeTo (file);
     }
 }

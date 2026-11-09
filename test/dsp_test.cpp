@@ -167,6 +167,40 @@ int main()
         CHECK (maxJump < 0.9f, "click: jump %.3f", maxJump);
     }
 
+    // ---- 6. CLIP button: level-matched (+-3 dB rms), lower crest factor, no latency, no NaN ----
+    {
+        const double sr = 48000;
+        double rms[2] = {}, crest[2] = {};
+        for (int c = 0; c < 2; ++c)
+        {
+            lv::VoiceEngine e; e.prepare (sr, 256);
+            lv::Params p; p.clipOn = c == 1; e.setParams (p); e.reset();
+            FakeVoice v (sr); std::vector<float> in (256), l (256), r (256);
+            double sum = 0, pk = 0; long n = 0; bool bad = false;
+            for (int b = 0; b < 600; ++b)
+            {
+                for (int i = 0; i < 256; ++i) in[i] = v.next();
+                e.process (in.data(), nullptr, l.data(), r.data(), 256);
+                if (b > 200) for (int i = 0; i < 256; ++i) { if (! std::isfinite (l[i])) bad = true; sum += l[i] * l[i]; pk = std::max (pk, (double) std::abs (l[i])); ++n; }
+            }
+            rms[c] = std::sqrt (sum / n); crest[c] = pk / rms[c];
+            CHECK (! bad, "NaN with clip %d", c);
+            CHECK (pk < 1.0, "clip %d peak %.3f", c, pk);
+        }
+        const double diff = 20 * std::log10 (rms[1] / rms[0]);
+        std::printf ("CLIP: rms change %+.1f dB, crest %.2f -> %.2f\n", diff, crest[0], crest[1]);
+        CHECK (std::abs (diff) < 3.0, "clip changes level by %.1f dB", diff);
+        CHECK (crest[1] < crest[0], "clip does not reduce peaks");
+        // direct path latency with CLIP on
+        lv::VoiceEngine e; e.prepare (sr, 256); lv::Params p; p.voiceOn = false; p.clipOn = true; e.setParams (p); e.reset();
+        std::vector<float> in (256, 0.0f), l (256), r (256);
+        for (int b = 0; b < 100; ++b) e.process (in.data(), nullptr, l.data(), r.data(), 256);
+        in[0] = 0.5f; e.process (in.data(), nullptr, l.data(), r.data(), 256);
+        int first = -1; for (int i = 0; i < 256; ++i) if (std::abs (l[i]) > 0.05f) { first = i; break; }
+        std::printf ("CLIP direct path: impulse after %d samples\n", first);
+        CHECK (first >= 0 && first <= 2, "clip adds latency (%d)", first);
+    }
+
     std::printf (fails ? "\n%d CHECK(S) FAILED\n" : "\nALL TESTS PASSED\n", fails);
     return fails ? 1 : 0;
 }

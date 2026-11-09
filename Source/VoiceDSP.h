@@ -6,6 +6,7 @@
 //                              └─> BRUTAL layer (pitch - 12 st, same latency) ┘
 //   VOICE CHAIN = mud cut -> COMPRESSOR -> body / presence / air EQ -> DE-ESSER -> WARMTH (saturation)
 //   SFX = WIDE (stereo doubler) | SHIMMER (octave-up reverb) | ECHO THROW (ducked ping-pong) | BRUTAL (octave-down layer)
+//   CLIP (button): level-matched tanh clipper with ADAA before the output gain, 0 latency.
 //   ZERO LATENCY: when PITCH = 0, FORMANT = 0 and BRUTAL is off, the voice skips the pitch shifter (crossfade), so the
 //   only delay is the sound card buffer. The shifter adds ~30 ms only while the pitch/formant is really moved.
 //   AUTO LEVEL: a slow input gain rider (only while the host talks) brings quiet USB mics up to a good level.
@@ -24,6 +25,26 @@ constexpr float kPi = 3.14159265358979f;
 inline float dbToGain (float db) { return std::pow (10.0f, db * 0.05f); }
 inline float gainToDb (float g)  { return 20.0f * std::log10 (std::max (g, 1.0e-9f)); }
 // transparent below 0.8, rounds the top so nothing can ever pass 0.99
+// tanh clipper with 1st-order antiderivative anti-aliasing (ADAA): no oversampling, no latency, clean highs
+struct AdaaClipper
+{
+    float x1 = 0, f1 = 0;
+    static float logCosh (float x)
+    {
+        const float a = std::abs (x);
+        return a > 12.0f ? a - 0.69314718f : std::log (std::cosh (x));
+    }
+    void reset() { x1 = 0; f1 = 0; }
+    inline float process (float x)
+    {
+        const float f = logCosh (x);
+        const float d = x - x1;
+        const float y = std::abs (d) > 1.0e-4f ? (f - f1) / d : std::tanh (0.5f * (x + x1));
+        x1 = x; f1 = f;
+        return y;
+    }
+};
+
 inline float softClip (float x)
 {
     const float a = std::abs (x);
@@ -140,6 +161,7 @@ struct Params
     float sfxAmount = 0.5f;   // 0..1
     bool  mute = false;
     float outDb = 0.0f;
+    bool  clipOn = false;     // CLIP button: dense radio clipper, level-matched
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -237,6 +259,7 @@ public:
         gateEnv = 0; gateGain = 0; compEnv = 0; deessEnv = 0; limGain = 1; shimFbL = shimFbR = 0; voiceEnv = 0;
         pitchSm = cur.pitch; formantSm = cur.formant; muteGain = cur.mute ? 0.0f : 1.0f;
         voiceMix = cur.voiceOn ? 1.0f : 0.0f; sfxMix = 0; demonMix = 0;
+        clipL.reset(); clipR.reset(); clipMix = cur.clipOn ? 1.0f : 0.0f;
         directMix = (std::abs (cur.pitch) < 0.005f && std::abs (cur.formant) < 0.005f) ? 1.0f : 0.0f; directHold = 0; agcEnv = 0;
         lastMode = -1;
     }
@@ -270,6 +293,7 @@ private:
     float pitchSm = 0, formantSm = 0, muteGain = 1, voiceMix = 1, sfxMix = 0, demonMix = 0, shimFbL = 0, shimFbR = 0;
     float directMix = 1, directHold = 0;   // 1 = voice bypasses the pitch shifter (no latency)
     float agcDb = 0, agcEnv = 0;           // auto level
+    AdaaClipper clipL, clipR; float clipMix = 0;
     float lfoPhase[4] { 0.0f, 0.25f, 0.5f, 0.75f };
     int lastMode = -1; float lastStrength = -1;
     float chL = 0, chR = 0;   // input channel energy (picks the live channel of a mono USB mic)
@@ -487,6 +511,14 @@ private:
                 // keep the SFX lines fed / empty so turning on is clean
                 if (type == 0) wideDl.push (v);
                 shimFbL *= 0.99f; shimFbR *= 0.99f;
+            }
+            // CLIP: +8 dB into a smooth tanh, back down (+2 dB make-up) -> quiet parts keep their level, peaks get dense
+            const float cT = cur.clipOn ? 1.0f : 0.0f;
+            clipMix = cT + (clipMix - cT) * 0.9995f;
+            {
+                const float drive = 2.5f, back = 1.26f / drive;
+                const float cl = clipL.process (l * drive) * back, cr = clipR.process (r * drive) * back;
+                if (clipMix > 0.0005f) { l += (cl - l) * clipMix; r += (cr - r) * clipMix; }
             }
             // output gain + mute (smoothed) + limiter (ceiling -1 dBFS)
             muteGain = mT + (muteGain - mT) * 0.998f;

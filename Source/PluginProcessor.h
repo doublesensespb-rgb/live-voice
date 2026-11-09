@@ -15,6 +15,7 @@ namespace ParamID
     inline constexpr const char* sfxAmount = "sfxAmount";
     inline constexpr const char* mute      = "mute";
     inline constexpr const char* output    = "output";
+    inline constexpr const char* clipOn    = "clipOn";   // 0.12
 }
 
 class LiveVoiceProcessor final : public juce::AudioProcessor
@@ -61,7 +62,7 @@ public:
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
-    std::atomic<float>* p[10] {};
+    std::atomic<float>* p[11] {};
     std::vector<float> inCopy;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LiveVoiceProcessor)
 };

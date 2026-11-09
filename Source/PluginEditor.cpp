@@ -469,6 +469,9 @@ LiveVoiceEditor::LiveVoiceEditor (LiveVoiceProcessor& p) : AudioProcessorEditor 
     muteBtn.getProperties().set ("kind", "mute"); muteBtn.setClickingTogglesState (true);
     addAndMakeVisible (muteBtn);
     aMute = std::make_unique<BA> (st, ParamID::mute, muteBtn);
+    clipBtn.setClickingTogglesState (true);
+    addAndMakeVisible (clipBtn);
+    aClip = std::make_unique<BA> (st, ParamID::clipOn, clipBtn);
     audioBtn.onClick = [] { if (LiveVoiceEditor::onAudioSettings) LiveVoiceEditor::onAudioSettings(); };
     addAndMakeVisible (audioBtn);
 
@@ -656,6 +659,8 @@ bool LiveVoiceEditor::keyPressed (const KeyPress& k)
     if (k == KeyPress::spaceKey) { setParam (ParamID::voiceOn, getParam (ParamID::voiceOn) > 0.5f ? 0.0f : 1.0f); return true; }
     if (k.getTextCharacter() == 'm' || k.getTextCharacter() == 'M' || k.getTextCharacter() == L'ь' || k.getTextCharacter() == L'Ь')
     { setParam (ParamID::mute, getParam (ParamID::mute) > 0.5f ? 0.0f : 1.0f); return true; }
+    if (k.getTextCharacter() == 'c' || k.getTextCharacter() == 'C' || k.getTextCharacter() == L'с' || k.getTextCharacter() == L'С')
+    { setParam (ParamID::clipOn, getParam (ParamID::clipOn) > 0.5f ? 0.0f : 1.0f); return true; }
     if (k == KeyPress::upKey)   { setParam (ParamID::formant, jmin (12.0f, std::round (getParam (ParamID::formant)) + 1.0f)); return true; }
     if (k == KeyPress::downKey) { setParam (ParamID::formant, jmax (-12.0f, std::round (getParam (ParamID::formant)) - 1.0f)); return true; }
     if (k.getTextCharacter() == '0') { setParam (ParamID::formant, 0.0f); return true; }
@@ -685,8 +690,8 @@ void LiveVoiceEditor::paint (Graphics& g)
     g.drawText ("LIVE VOCAL PROCESSOR", Rectangle<int> (28, 52, 260, 16), Justification::centredLeft);
 
     // header labels
-    caption (g, "IN", inMeter.getBounds().withX (inMeter.getX() - 30).withWidth (24).expanded (0, 4), Justification::centredRight, Palette::textDim, 11.0f);
-    caption (g, "OUT", outMeter.getBounds().withX (outMeter.getX() - 34).withWidth (28).expanded (0, 4), Justification::centredRight, Palette::textDim, 11.0f);
+    caption (g, "IN", inMeter.getBounds().withX (inMeter.getX() - 30).withWidth (26).expanded (0, 4), Justification::centredRight, Palette::textDim, 10.0f);
+    caption (g, "OUT", outMeter.getBounds().withX (outMeter.getX() - 30).withWidth (26).expanded (0, 4), Justification::centredRight, Palette::textDim, 10.0f);
     caption (g, "LEVEL", Rectangle<int> (outKnob.getX() - 12, outKnob.getBottom() - 2, outKnob.getWidth() + 24, 14), Justification::centred, Palette::textDim, 10.0f);
 
     for (auto r : { voicePanel, pitchPanel, sfxPanel }) panelBox (g, r.toFloat());
@@ -734,7 +739,7 @@ void LiveVoiceEditor::paint (Graphics& g)
     // footer: shortcuts
     g.setColour (Palette::textDim.withAlpha (0.8f));
     g.setFont (uiFont (11.0f));
-    g.drawText ("SPACE  voice on/off      M  mute      UP / DOWN  pitch      0  normal voice      CTRL+Z  undo      CTRL+S  save preset",
+    g.drawText ("SPACE  voice on/off      M  mute      C  clip      UP / DOWN  pitch      0  normal voice      CTRL+Z  undo      CTRL+S  save preset",
                 Rectangle<int> (0, getHeight() - 26, getWidth(), 18), Justification::centred);
 }
 
@@ -744,15 +749,16 @@ void LiveVoiceEditor::resized()
     muteBtn.setBounds (getWidth() - 24 - 80, 20, 80, 34);
     audioBtn.setBounds (muteBtn.getX() - 8 - 70, 20, 70, 34);
     outKnob.setBounds (audioBtn.getX() - 16 - 40, 12, 40, 40);
-    outMeter.setBounds (outKnob.getX() - 14 - 104, 41, 104, 9);
-    inMeter.setBounds (outMeter.getX(), 24, 104, 9);
+    clipBtn.setBounds (outKnob.getX() - 14 - 56, 20, 56, 34);
+    outMeter.setBounds (clipBtn.getX() - 12 - 80, 41, 80, 9);
+    inMeter.setBounds (outMeter.getX(), 24, 80, 9);
 
-    const int px = 300, py = 20, ph = 34;
+    const int px = 272, py = 20, ph = 34;
     presetPrev.setBounds (px, py, 26, ph);
-    presetBox.setBounds (presetPrev.getRight() + 4, py, 170, ph);
+    presetBox.setBounds (presetPrev.getRight() + 4, py, 150, ph);
     presetNext.setBounds (presetBox.getRight() + 4, py, 26, ph);
-    saveBtn.setBounds (presetNext.getRight() + 8, py, 60, ph);
-    undoBtn.setBounds (saveBtn.getRight() + 6, py, 60, ph);
+    saveBtn.setBounds (presetNext.getRight() + 8, py, 58, ph);
+    undoBtn.setBounds (saveBtn.getRight() + 6, py, 58, ph);
 
     const int top = 84, h = getHeight() - top - 34;
     voicePanel = { 24, top, 280, h };

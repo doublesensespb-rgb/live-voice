@@ -30,6 +30,7 @@ int main (int argc, char** argv)
         LiveVoiceProcessor proc;
         setP (proc, ParamID::mode, (float) s.mode); setP (proc, ParamID::formant, s.pitch);
         setP (proc, ParamID::sfxOn, s.sfx ? 1.0f : 0.0f); setP (proc, ParamID::sfxType, (float) s.type); setP (proc, ParamID::sfxAmount, s.amt);
+        if (String (s.name) == "ui-brutal") setP (proc, ParamID::clipOn, 1.0f);
         proc.engine.inLevel = 0.35f; proc.engine.outLevel = 0.6f; proc.engine.sfxActivity = s.sfx ? 0.6f : 0.0f;
         std::unique_ptr<AudioProcessorEditor> ed (proc.createEditor());
         auto* e = dynamic_cast<LiveVoiceEditor*> (ed.get());

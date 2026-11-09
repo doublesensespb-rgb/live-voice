@@ -112,7 +112,7 @@ private:
     // header
     LevelMeter inMeter, outMeter;
     juce::Slider outKnob;
-    juce::TextButton muteBtn { "MUTE" }, audioBtn { "AUDIO" };
+    juce::TextButton muteBtn { "MUTE" }, audioBtn { "AUDIO" }, clipBtn { "CLIP" };
     juce::TextButton presetPrev { "<" }, presetNext { ">" }, presetBox, saveBtn { "SAVE" }, undoBtn { "UNDO" };
     SaveOverlay saveOverlay { proc };
     // voice
@@ -129,7 +129,7 @@ private:
     juce::Slider amountKnob;
 
     std::unique_ptr<SA> aOut, aStrength, aPitch, aAmount;
-    std::unique_ptr<BA> aMute, aVoice, aSfx;
+    std::unique_ptr<BA> aMute, aVoice, aSfx, aClip;
 
     juce::Rectangle<int> voicePanel, pitchPanel, sfxPanel, header;
     int lastMode = -1, lastSfx = -1;

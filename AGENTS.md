@@ -1,6 +1,6 @@
 # LIVE VOICE (repo: live-voice) — guide for AI agents and developers
 
-Read this whole file before changing anything. Current version: **0.11** (`set(LIVEVOICE_LABEL "0.11")` + `project(... VERSION 0.1.1)` in CMakeLists.txt).
+Read this whole file before changing anything. Current version: **0.12** (`set(LIVEVOICE_LABEL "0.12")` + `project(... VERSION 0.1.2)` in CMakeLists.txt).
 
 ## 1. Product
 
@@ -16,6 +16,7 @@ mic (L/R, picks the channel that carries signal) -> HPF -> soft GATE -> AUTO LEV
   -> BRUTAL layer (parallel shifter at pitch-12, same latency) ┘  and BRUTAL is off (300 ms hold, 25 ms fade)
   -> VOICE CHAIN: mud cut -> compressor -> body/presence/air -> de-esser -> warmth   (mode x STRENGTH)
   -> SFX: WIDE (4-tap modulated doubler) | SHIMMER (+12 st shifter into an 8-line FDN) | ECHO THROW (ducked ping-pong) | BRUTAL
+  -> CLIP (button, param `clipOn`: +8 dB into tanh with ADAA, -8+2 dB back, level-matched, 0 latency)
   -> OUTPUT gain -> MUTE (smoothed) -> limiter (-1 dBFS) + soft clip above 0.8
 ```
 Audio is processed in 32-sample chunks. Modes: NATURAL, RADIO, CLUB, DEEP (`kModes`). SFX names in `kSfx`.
@@ -68,6 +69,7 @@ v0.11: the big PITCH knob now drives the parameter `formant` (voice size: the ow
 the note shift (param `pitch`) is legacy: kept for old states, forced to 0 in processBlock, not in the UI (on speech it barely
 changed anything and sounded hissy with the 30 ms block). FORMANT row removed. Factory presets are rewritten when their
 `version` differs from the app's label.
+v0.12: CLIP button in the header (key C), saved in presets; factory: Radio Night, Club MC, Brutal Announcer have CLIP on.
 
 ## 6. How it was made
 Built by the owner talking to Claude (Anthropic) in a claude.ai session; the owner described, Claude wrote the code,

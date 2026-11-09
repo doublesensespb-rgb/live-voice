@@ -146,6 +146,13 @@ void LiveVoiceLook::drawButtonBackground (Graphics& g, Button& b, const Colour&,
     const bool on = b.getToggleState();
     const float rad = 7.0f;
 
+    if (kind == "tab")
+    {
+        g.setColour (over ? Palette::buttonHi : Palette::panel); g.fillRoundedRectangle (r, 12.0f);
+        g.setColour (over ? Palette::accent.withAlpha (0.7f) : Colours::white.withAlpha (0.06f));
+        g.drawRoundedRectangle (r.reduced (0.5f), 12.0f, 1.0f);
+        return;
+    }
     if (kind == "preset")
     {
         g.setColour (Palette::screen); g.fillRoundedRectangle (r, rad);
@@ -203,6 +210,29 @@ void LiveVoiceLook::drawButtonText (Graphics& g, TextButton& b, bool, bool)
         g.setColour (on ? Palette::accent.withAlpha (0.85f) : Palette::textDim);
         g.setFont (uiFont (11.5f, false, 0.02f));
         g.drawText (b.getProperties()["hint"].toString(), t.translated (0, 2), Justification::topLeft);
+        return;
+    }
+    if (kind == "hide")
+    {
+        // "HIDE >" : clearly the switch for this module
+        g.setColour (Palette::text); g.setFont (uiFont (12.5f, true, 0.10f));
+        g.drawText (b.getButtonText(), r.withTrimmedRight (18), Justification::centred);
+        Path p; const float cx = (float) r.getRight() - 18.0f, cy = (float) r.getCentreY();
+        p.startNewSubPath (cx - 3, cy - 6); p.lineTo (cx + 3, cy); p.lineTo (cx - 3, cy + 6);
+        g.setColour (Palette::accent); g.strokePath (p, PathStrokeType (1.8f, PathStrokeType::curved, PathStrokeType::rounded));
+        return;
+    }
+    if (kind == "tab")
+    {
+        // slim vertical tab: "<" + "PITCH & EFFECTS" written upwards
+        auto c = r.toFloat().getCentre();
+        Path p; const float cy = (float) r.getY() + 34.0f;
+        p.startNewSubPath (c.x + 4, cy - 8); p.lineTo (c.x - 4, cy); p.lineTo (c.x + 4, cy + 8);
+        g.setColour (Palette::accent); g.strokePath (p, PathStrokeType (2.0f, PathStrokeType::curved, PathStrokeType::rounded));
+        Graphics::ScopedSaveState ss (g);
+        g.addTransform (AffineTransform::rotation (-MathConstants<float>::halfPi, c.x, c.y));
+        g.setColour (Palette::text); g.setFont (uiFont (13.0f, true, 0.18f));
+        g.drawText ("SHOW  PITCH & EFFECTS", Rectangle<float> ((float) r.getHeight() - 40.0f, 30.0f).withCentre (c).toNearestInt(), Justification::centred);
         return;
     }
     if (kind == "arrow")
@@ -508,7 +538,6 @@ void LiveVoiceEditor::refresh()
     for (auto* t : tiles) { t->setToggleState (t->index == v, dontSendNotification); t->setAlpha (on ? 1.0f : 0.45f); }
     pitchKnob.setDoubleClickReturnValue (true, kVoices[v].pitch);
     for (int k = 0; k < 4; ++k) fxBars[k]->setAlpha (getParam (kFxOn[k]) > 0.5f ? 1.0f : 0.35f);
-    hideBtn.setButtonText (showControls() ? "HIDE" : "SHOW");
 }
 
 void LiveVoiceEditor::timerCallback()
@@ -517,7 +546,7 @@ void LiveVoiceEditor::timerCallback()
     outMeter.setLevel (proc.engine.outLevel.load());
     const float act = proc.engine.sfxActivity.load();
     for (auto* b : sfxBtns) { b->activity = b->activity * 0.7f + act * 0.3f; if (b->getToggleState()) b->repaint(); }
-    if (pitchPanel.isEmpty() == showControls()) resized();
+    if (controlsPanel.isEmpty() == showControls()) resized();
     refresh();
     repaint (pitchPanel.withHeight (60));
     repaint (sfxPanel.withHeight (50));
@@ -561,7 +590,7 @@ void LiveVoiceEditor::paint (Graphics& g)
     caption (g, on ? "ON" : "OFF", Rectangle<int> (powerBtn.getX() - 8, powerBtn.getBottom() - 1, powerBtn.getWidth() + 16, 14), Justification::centred,
              on ? Palette::accent : Palette::textDim, 10.0f);
 
-    for (auto r : { voicePanel, pitchPanel, sfxPanel }) if (! r.isEmpty()) panelBox (g, r.toFloat());
+    for (auto r : { voicePanel, controlsPanel }) if (! r.isEmpty()) panelBox (g, r.toFloat());
 
     // VOICE PRESETS
     caption (g, "VOICE PRESETS", Rectangle<int> (voicePanel.getX() + 22, voicePanel.getY() + 14, 200, 24), Justification::centredLeft, Palette::text, 14.0f);
@@ -570,12 +599,12 @@ void LiveVoiceEditor::paint (Graphics& g)
 
     if (showControls())
     {
-    // PITCH
-    caption (g, "PITCH", Rectangle<int> (pitchPanel.getX() + 22, pitchPanel.getY() + 14, 120, 24), Justification::centredLeft, Palette::text, 14.0f);
+    // PITCH (top part of the one CONTROLS module; the HIDE button sits in its top-right corner)
+    caption (g, "PITCH", Rectangle<int> (pitchPanel.getX() + 22, pitchPanel.getY() + 14, 70, 24), Justification::centredLeft, Palette::text, 14.0f);
     const float pv = getParam (ParamID::formant);
     g.setColour (std::abs (pv) < 0.05f ? Palette::text : Palette::glow);
-    g.setFont (uiFont (22.0f, true, 0.02f));
-    g.drawText (semis (pv), Rectangle<int> (pitchPanel.getRight() - 162, pitchPanel.getY() + 10, 140, 30), Justification::centredRight);
+    g.setFont (uiFont (20.0f, true, 0.02f));
+    g.drawText (semis (pv), Rectangle<int> (pitchPanel.getX() + 86, pitchPanel.getY() + 11, 110, 30), Justification::centredLeft);
     {
         const auto c = pitchKnob.getBounds().toFloat().getCentre();
         const float rr = pitchKnob.getWidth() * 0.5f + 13.0f;
@@ -588,7 +617,10 @@ void LiveVoiceEditor::paint (Graphics& g)
         caption (g, "HIGHER", Rectangle<int> ((int) (c.x + rr - 36), (int) (c.y + rr * 0.78f), 72, 16), Justification::centred, Palette::textDim, 10.0f);
     }
     g.setColour (Palette::textDim); g.setFont (uiFont (11.0f));
-    g.drawText ("double-click = back to the preset", Rectangle<int> (pitchPanel.getX(), pitchPanel.getBottom() - 30, pitchPanel.getWidth(), 18), Justification::centred);
+    g.drawText ("double-click = back to the preset", Rectangle<int> (pitchPanel.getX(), pitchPanel.getBottom() - 26, pitchPanel.getWidth(), 18), Justification::centred);
+    // divider between PITCH and EFFECTS inside the same module
+    g.setColour (Colours::white.withAlpha (0.06f));
+    g.fillRect (Rectangle<int> (controlsPanel.getX() + 20, sfxPanel.getY(), controlsPanel.getWidth() - 40, 1));
 
     // EFFECT
     caption (g, "EFFECTS", Rectangle<int> (sfxPanel.getX() + 22, sfxPanel.getY() + 12, 160, 22), Justification::centredLeft, Palette::text, 14.0f);
@@ -610,18 +642,20 @@ void LiveVoiceEditor::resized()
     outMeter.setBounds (clipBtn.getX() - 20 - 110, 41, 110, 9);
     inMeter.setBounds (outMeter.getX(), 24, 110, 9);
 
-    hideBtn.setBounds (outMeter.getX() - 34 - 30 - 64, 20, 64, 34);
-
     const int top = 84, h = getHeight() - top - 34;
     const bool show = showControls();
-    for (auto* c : std::initializer_list<Component*> { &pitchKnob }) c->setVisible (show);
+    pitchKnob.setVisible (show);
     for (auto* b : sfxBtns) b->setVisible (show);
     for (auto* b : fxBars) b->setVisible (show);
+    hideBtn.getProperties().set ("kind", show ? "hide" : "tab");
+    hideBtn.setButtonText (show ? "HIDE" : "PITCH & EFFECTS");
     if (! show)
     {
-        // presets only: 5 x 2 big tiles over the whole width
-        voicePanel = { 24, top, getWidth() - 48, h };
-        pitchPanel = {}; sfxPanel = {};
+        // presets only: 5 x 2 big tiles; a slim tab on the right brings PITCH & EFFECTS back
+        const int tabW = 44;
+        hideBtn.setBounds (getWidth() - 24 - tabW, top, tabW, h);
+        voicePanel = { 24, top, hideBtn.getX() - 12 - 24, h };
+        controlsPanel = pitchPanel = sfxPanel = {};
         const int cols = 5, tw = (voicePanel.getWidth() - 36 - (cols - 1) * 12) / cols, th = (voicePanel.getHeight() - 50 - 18 - 12) / 2;
         for (int i = 0; i < tiles.size(); ++i)
             tiles[i]->setBounds (voicePanel.getX() + 18 + (i % cols) * (tw + 12), voicePanel.getY() + 50 + (i / cols) * (th + 12), tw, th);
@@ -629,19 +663,21 @@ void LiveVoiceEditor::resized()
     }
     voicePanel = { 24, top, 560, h };
     const int rx = voicePanel.getRight() + 16, rw = getWidth() - 24 - rx;
-    pitchPanel = { rx, top, rw, 262 };
-    sfxPanel   = { rx, pitchPanel.getBottom() + 14, rw, h - 262 - 14 };
+    controlsPanel = { rx, top, rw, h };
+    pitchPanel = { rx, top, rw, 270 };
+    sfxPanel   = { rx, pitchPanel.getBottom(), rw, h - 270 };
+    hideBtn.setBounds (controlsPanel.getRight() - 18 - 82, controlsPanel.getY() + 12, 82, 30);
 
     const int tw = (voicePanel.getWidth() - 36 - 12) / 2, th = 68, tg = 10;
     for (int i = 0; i < tiles.size(); ++i)
         tiles[i]->setBounds (voicePanel.getX() + 18 + (i % 2) * (tw + 12), voicePanel.getY() + 50 + (i / 2) * (th + tg), tw, th);
 
-    pitchKnob.setBounds (Rectangle<int> (168, 168).withCentre ({ pitchPanel.getCentreX(), pitchPanel.getY() + 136 }));
+    pitchKnob.setBounds (Rectangle<int> (160, 160).withCentre ({ pitchPanel.getCentreX(), pitchPanel.getY() + 140 }));
 
     const int bw = (sfxPanel.getWidth() - 36 - 3 * 10) / 4;
     for (int i = 0; i < 4; ++i)
     {
-        sfxBtns[i]->setBounds (sfxPanel.getX() + 18 + i * (bw + 10), sfxPanel.getY() + 42, bw, bw + 4);
+        sfxBtns[i]->setBounds (sfxPanel.getX() + 18 + i * (bw + 10), sfxPanel.getY() + 44, bw, bw + 4);
         fxBars[i]->setBounds (sfxBtns[i]->getX() + 4, sfxBtns[i]->getBottom() + 10, bw - 8, 8);
     }
 }

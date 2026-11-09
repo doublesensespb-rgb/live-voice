@@ -112,6 +112,6 @@ private:
     bool showControls() const;
     void setShowControls (bool);
 
-    juce::Rectangle<int> voicePanel, pitchPanel, sfxPanel;
+    juce::Rectangle<int> voicePanel, controlsPanel, pitchPanel, sfxPanel;   // controlsPanel = one module: PITCH (top) + EFFECTS (bottom)
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LiveVoiceEditor)
 };

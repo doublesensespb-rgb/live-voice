@@ -5,7 +5,8 @@
 //   input -> HPF -> GATE -> PITCH (Signalsmith Stretch, formant kept) ─┬─> sum -> VOICE CHAIN -> SFX -> OUTPUT gain -> LIMITER
 //                              └─> BRUTAL layer (pitch - 12 st, same latency) ┘
 //   VOICE CHAIN = mud cut -> COMPRESSOR -> body / presence / air EQ -> DE-ESSER -> WARMTH (saturation)
-//   SFX = WIDE (stereo doubler) | SHIMMER (octave-up reverb) | ECHO THROW (ducked ping-pong) | BRUTAL (octave-down layer)
+//   EFFECTS (any combination): WIDE (mono-safe side doubler) + ECHO (ducked ping-pong) + SHIMMER (octave-up reverb)
+//   + BRUTAL (mass layer with lower formants + harmonic grit + chest)
 //   CLIP (button): level-matched tanh clipper with ADAA before the output gain, 0 latency.
 //   ZERO LATENCY: when PITCH = 0, FORMANT = 0 and BRUTAL is off, the voice skips the pitch shifter (crossfade), so the
 //   only delay is the sound card buffer. The shifter adds ~30 ms only while the pitch/formant is really moved.
@@ -156,9 +157,14 @@ struct Params
     float strength = 0.7f;    // 0..1
     float pitch = 0.0f;       // semitones -12..+12
     float formant = 0.0f;     // semitones -12..+12 (0 = natural formants)
-    bool  sfxOn = false;
+    bool  sfxOn = false;      // legacy (0.1-0.12 single effect), ignored since 0.13
     int   sfxType = 0;
-    float sfxAmount = 0.5f;   // 0..1
+    float sfxAmount = 0.5f;
+    // 0.13: every effect has its own switch + amount and they can run together
+    bool wideOn = false;   float wideAmt = 0.25f;
+    bool shimOn = false;   float shimAmt = 0.40f;
+    bool echoOn = false;   float echoAmt = 0.40f;
+    bool brutalOn = false; float brutalAmt = 0.50f;
     bool  mute = false;
     float outDb = 0.0f;
     bool  clipOn = false;     // CLIP button: dense radio clipper, level-matched
@@ -256,14 +262,18 @@ public:
     {
         main.reset(); demon.reset(); shimmerPs.reset();
         for (auto* b : { &hpf1, &hpf2, &mud, &body, &pres, &air, &deessDet, &deessSplit, &demonLp, &echoHpL, &echoLpL, &echoHpR, &echoLpR, &shimHp })
+        {
             b->reset();
+        }
         gateDl.clear(); dryDl.clear(); noiseFloor = 1.0e-3f; lvlEnv = 0;
         for (auto& m : segMin) m = 1.0f; segCur = 1.0f; segPos = segCount = 0;
         for (auto* b : { &xLp1, &xLp2, &xHp1, &xHp2 }) b->reset();
         wideDl.clear(); echoL.clear(); echoR.clear(); fdn.clear();
+        for (auto* b : { &demonHp, &gritHp, &gritLp, &chest }) b->reset();
+        brEnv = 0; wideMix = shimMix = echoMix = 0;
         gateEnv = 0; gateGain = 0; compEnv = 0; deessEnv = 0; limGain = 1; shimFbL = shimFbR = 0; voiceEnv = 0;
         pitchSm = cur.pitch; formantSm = cur.formant; muteGain = cur.mute ? 0.0f : 1.0f;
-        voiceMix = cur.voiceOn ? 1.0f : 0.0f; sfxMix = 0; demonMix = 0;
+        voiceMix = cur.voiceOn ? 1.0f : 0.0f; demonMix = 0;
         clipL.reset(); clipR.reset(); clipMix = cur.clipOn ? 1.0f : 0.0f;
         directMix = (std::abs (cur.pitch) < 0.005f && std::abs (cur.formant) < 0.005f) ? 1.0f : 0.0f; directHold = 0; agcEnv = 0;
         lastMode = -1;
@@ -291,11 +301,13 @@ private:
     Params cur;
     PitchShifter main, demon, shimmerPs;
     std::vector<float> mono, pitched, demonBuf, shimIn, shimOut;
+    Biquad demonHp, gritHp, gritLp, chest; float brEnv = 0, lastChest = -1;
+    float wideMix = 0, shimMix = 0, echoMix = 0;
     Biquad hpf1, hpf2, mud, body, pres, air, deessDet, deessSplit, demonLp, echoHpL, echoLpL, echoHpR, echoLpR, shimHp;
     DelayLine wideDl, echoL, echoR;
     Fdn fdn;
     float gateEnv = 0, gateGain = 0, compEnv = 0, deessEnv = 0, limGain = 1, voiceEnv = 0;
-    float pitchSm = 0, formantSm = 0, muteGain = 1, voiceMix = 1, sfxMix = 0, demonMix = 0, shimFbL = 0, shimFbR = 0;
+    float pitchSm = 0, formantSm = 0, muteGain = 1, voiceMix = 1, demonMix = 0, shimFbL = 0, shimFbR = 0;
     float directMix = 1, directHold = 0;   // 1 = voice bypasses the pitch shifter (no latency)
     float agcDb = 0, agcEnv = 0;           // auto level
     int gateHold = 0;
@@ -321,7 +333,8 @@ private:
         air.highShelf (fs, 10000.0f, m.airDb * s);
         deessDet.bp (fs, 6500.0f, 1.2f);
         deessSplit.hp (fs, 4500.0f);
-        demonLp.lp (fs, 2600.0f);
+        demonLp.lp (fs, 3000.0f); demonHp.hp (fs, 70.0f);
+        gritHp.hp (fs, 150.0f); gritLp.lp (fs, 2500.0f); lastChest = -1;
         echoHpL.hp (fs, 450.0f); echoHpR.hp (fs, 450.0f);
         echoLpL.lp (fs, 4200.0f); echoLpR.lp (fs, 4200.0f);
         shimHp.hp (fs, 500.0f);
@@ -404,19 +417,23 @@ private:
             }
         }
 
-        // ---- BRUTAL layer (parallel, same latency as the main path) ----
-        const bool demonActive = cur.sfxOn && cur.sfxType == 3;
-        const float demonTarget = demonActive ? cur.sfxAmount : 0.0f;
+        // ---- BRUTAL (0.13): "heavy announcer" = MASS layer (same note, formants 5-7 lower, own compressor)
+        //      + GRIT (harmonics-only parallel tube on 150 Hz..2.5 kHz) + CHEST (low shelf). No octave-down robot.
+        const bool demonActive = cur.brutalOn;
+        const float demonTarget = demonActive ? cur.brutalAmt : 0.0f;
         demonMix = demonTarget + (demonMix - demonTarget) * coefMs (40.0f, fs / n);
         if (demonMix > 0.001f || demonActive)
         {
-            demon.setShift (pitchSm - 12.0f, formantSm - 3.0f - 3.0f * demonMix);
+            demon.setShift (pitchSm, formantSm - 5.0f - 2.0f * demonMix);
             demon.process (mono.data(), demonBuf.data(), n);
-            const float drive = 1.5f + 5.0f * demonMix;
+            const float cA = coefMs (5.0f, fs), cR = coefMs (120.0f, fs), thr = 0.08f;
             for (int i = 0; i < n; ++i)
             {
-                const float d = demonLp.process (std::tanh (demonBuf[(size_t) i] * drive) / std::tanh (drive) * 0.9f);
-                pitched[(size_t) i] += d * demonMix * 1.3f;
+                const float d = demonLp.process (demonHp.process (demonBuf[(size_t) i]));
+                const float a = std::abs (d);
+                brEnv = a > brEnv ? a + (brEnv - a) * cA : a + (brEnv - a) * cR;
+                const float g = brEnv > thr ? std::pow (thr / brEnv, 0.75f) : 1.0f;   // 4:1
+                pitched[(size_t) i] += d * g * 1.6f * demonMix;
             }
         }
 
@@ -442,6 +459,8 @@ private:
         const float aC = coefMs (3.0f, fs), rC = coefMs (130.0f, fs);
         const float aD = coefMs (1.0f, fs), rD = coefMs (60.0f, fs);
         const float warm = m.warmth * s;
+        if (std::abs (demonMix - lastChest) > 0.01f) { chest.lowShelf (fs, 110.0f, 6.0f * demonMix); lastChest = demonMix; }
+        const float gk = 2.0f + 6.0f * demonMix, gBias = 0.12f, gSlope = 1.0f - std::tanh (gk * gBias) * std::tanh (gk * gBias);
         float grMax = 0;
         for (int i = 0; i < n; ++i)
         {
@@ -470,6 +489,14 @@ private:
                 const float dr = 1.0f + warm * 3.0f;
                 x = x * (1.0f - warm) + std::tanh (x * dr) / dr * 1.15f * warm;
             }
+            // BRUTAL grit + chest (after the compressor, so the level stays even)
+            if (demonMix > 0.001f)
+            {
+                const float bp = gritLp.process (gritHp.process (x));
+                const float sat = (std::tanh (gk * (bp + gBias)) - std::tanh (gk * gBias)) / gk;
+                x += (sat - bp * gSlope) * 1.6f * demonMix;           // only the added harmonics
+                x = chest.process (x);
+            }
             pitched[(size_t) i] = dry + (x - dry) * vm;
         }
         gainReduction.store (-grMax * voiceMix);
@@ -485,14 +512,13 @@ private:
             }
         }
 
-        // ---- SFX (stereo) ----
-        const float sfxTarget = cur.sfxOn ? 1.0f : 0.0f;
-        const float amt = cur.sfxAmount;
-        const int type = std::clamp (cur.sfxType, 0, 3);
-        if (type == 1 && (cur.sfxOn || sfxMix > 0.001f))
+        // ---- EFFECTS (0.13: any combination) ----
+        const float wT = cur.wideOn ? cur.wideAmt : 0.0f, sT = cur.shimOn ? cur.shimAmt : 0.0f, eT = cur.echoOn ? cur.echoAmt : 0.0f;
+        const bool shimRun = sT > 0.0f || shimMix > 0.001f;
+        if (shimRun)
         {
             // SHIMMER: octave-up pitch of (voice + reverb feedback) into a long reverb
-            for (int i = 0; i < n; ++i) shimIn[(size_t) i] = shimHp.process (pitched[(size_t) i] * 0.6f + (shimFbL + shimFbR) * 0.5f * (0.35f + 0.4f * amt));
+            for (int i = 0; i < n; ++i) shimIn[(size_t) i] = shimHp.process (pitched[(size_t) i] * 0.6f + (shimFbL + shimFbR) * 0.5f * (0.35f + 0.4f * shimMix));
             shimmerPs.setShift (12.0f, 0.0f);
             shimmerPs.process (shimIn.data(), shimOut.data(), n);
         }
@@ -502,66 +528,57 @@ private:
         float pko = 0;
         for (int i = 0; i < n; ++i)
         {
-            sfxMix = sfxTarget + (sfxMix - sfxTarget) * 0.9995f;
+            wideMix = wT + (wideMix - wT) * 0.9995f;
+            shimMix = sT + (shimMix - sT) * 0.9995f;
+            echoMix = eT + (echoMix - eT) * 0.9995f;
             const float v = pitched[(size_t) i];
             float l = v, r = v;
             voiceEnv = std::abs (v) > voiceEnv ? std::abs (v) : voiceEnv * 0.9997f;
-            if (sfxMix > 0.0005f)
+
+            // WIDE (mono-safe): the width is pure SIDE (two drifting copies, difference goes L / -R, cancels in mono)
+            // + one gentle centre copy for thickness. In a mono club only the clean voice (+ a hint of thickness) remains.
+            wideDl.push (v);
+            if (wideMix > 0.0005f)
             {
-                float wl2 = 0, wr2 = 0;
-                if (type == 0)
+                const float depth = 0.6f * 0.001f * (float) fs;
+                float taps[3];
+                for (int t = 0; t < 3; ++t)
                 {
-                    // WIDE: four slowly drifting copies (8..23 ms), opposite sides, a few cents apart
-                    wideDl.push (v);
-                    const float depth = (0.25f + 1.1f * amt) * 0.001f * (float) fs;
-                    float taps[4];
-                    for (int t = 0; t < 4; ++t)
-                    {
-                        lfoPhase[t] += (0.13f + 0.07f * (float) t) / (float) fs; if (lfoPhase[t] >= 1) lfoPhase[t] -= 1;
-                        const float base = (8.0f + 5.0f * (float) t) * 0.001f * (float) fs;
-                        taps[t] = wideDl.read (base + depth * (0.5f + 0.5f * std::sin (2 * kPi * lfoPhase[t])));
-                    }
-                    const float g = 0.55f + 0.5f * amt;
-                    wl2 = (taps[0] * 0.9f + taps[2] * 0.6f - taps[3] * 0.25f) * g;
-                    wr2 = (taps[1] * 0.9f + taps[3] * 0.6f - taps[2] * 0.25f) * g;
-                    l = v * (1.0f - 0.25f * amt) + wl2; r = v * (1.0f - 0.25f * amt) + wr2;
+                    lfoPhase[t] += (0.11f + 0.07f * (float) t) / (float) fs; if (lfoPhase[t] >= 1) lfoPhase[t] -= 1;
+                    const float base = (9.0f + 6.0f * (float) t) * 0.001f * (float) fs;
+                    taps[t] = wideDl.read (base + depth * (0.5f + 0.5f * std::sin (2 * kPi * lfoPhase[t])));
                 }
-                else if (type == 1)
-                {
-                    float rl, rr;
-                    fdn.process (shimOut[(size_t) i] + v * 0.25f, 2.5f + 5.0f * amt, 0.35f, rl, rr);
-                    shimFbL = rl; shimFbR = rr;
-                    const float w = 0.25f + 0.75f * amt;
-                    wl2 = rl * w; wr2 = rr * w;
-                    l = v + wl2; r = v + wr2;
-                }
-                else if (type == 2)
-                {
-                    // ECHO THROW: ping-pong, filtered repeats, ducked while the host is talking
-                    const float tL = 0.375f * (float) fs, tR = 0.5625f * (float) fs;
-                    const float dl = echoL.read (tL), dr = echoR.read (tR);
-                    const float fb = 0.35f + 0.37f * amt;
-                    echoL.push (echoLpL.process (echoHpL.process (v + dr * fb)));
-                    echoR.push (echoLpR.process (echoHpR.process (dl * fb)));
-                    const float duck = 1.0f / (1.0f + voiceEnv * 14.0f);
-                    const float w = (0.45f + 0.75f * amt) * duck;
-                    wl2 = dl * w; wr2 = dr * w;
-                    l = v + wl2; r = v + wr2;
-                }
-                else
-                {
-                    l = r = v;   // BRUTAL is mixed in before the voice chain
-                    wl2 = v * demonMix;
-                }
-                l = v + (l - v) * sfxMix; r = v + (r - v) * sfxMix;
-                act = std::max (act, std::abs (wl2) + std::abs (wr2));
+                const float side = (taps[0] - taps[1]) * 1.15f * wideMix;
+                const float mid = taps[2] * 0.14f * wideMix;
+                l += side + mid; r += -side + mid;
+                act = std::max (act, std::abs (side) * 2.0f);
             }
-            else
+            // ECHO: ping-pong, filtered repeats, ducked while the host is talking
             {
-                // keep the SFX lines fed / empty so turning on is clean
-                if (type == 0) wideDl.push (v);
-                shimFbL *= 0.99f; shimFbR *= 0.99f;
+                const float tL = 0.375f * (float) fs, tR = 0.5625f * (float) fs;
+                const float dl = echoL.read (tL), dr = echoR.read (tR);
+                const float fb = 0.30f + 0.40f * echoMix;
+                const float send = echoMix > 0.0005f ? v : 0.0f;
+                echoL.push (echoLpL.process (echoHpL.process (send + dr * fb)));
+                echoR.push (echoLpR.process (echoHpR.process (dl * fb)));
+                const float duck = 1.0f / (1.0f + voiceEnv * 14.0f);
+                const float w = (0.35f + 1.0f * echoMix) * duck * (echoMix > 0.0005f ? 1.0f : 0.0f);
+                l += dl * w; r += dr * w;
+                act = std::max (act, (std::abs (dl) + std::abs (dr)) * w);
             }
+            // SHIMMER
+            if (shimRun)
+            {
+                float rl, rr;
+                fdn.process (shimOut[(size_t) i] + v * 0.25f, 2.5f + 5.0f * shimMix, 0.35f, rl, rr);
+                shimFbL = rl; shimFbR = rr;
+                const float w = 1.1f * shimMix;
+                l += rl * w; r += rr * w;
+                act = std::max (act, (std::abs (rl) + std::abs (rr)) * w);
+            }
+            else { shimFbL *= 0.99f; shimFbR *= 0.99f; }
+            act = std::max (act, std::abs (v) * demonMix);
+
             // CLIP: +8 dB into a smooth tanh, back down (+2 dB make-up) -> quiet parts keep their level, peaks get dense
             const float cT = cur.clipOn ? 1.0f : 0.0f;
             clipMix = cT + (clipMix - cT) * 0.9995f;
@@ -582,7 +599,7 @@ private:
             pko = std::max (pko, std::max (std::abs (l), std::abs (r)));
         }
         peakOut = std::max (peakOut, pko);
-        sfxActivity.store (std::max (sfxActivity.load() * 0.97f, std::min (1.0f, act * 2.0f * sfxMix)));
+        sfxActivity.store (std::max (sfxActivity.load() * 0.97f, std::min (1.0f, act * 2.0f)));
         if (++meterCount >= 8)
         {
             inLevel.store (std::max (peakIn, inLevel.load() * 0.85f));

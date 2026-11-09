@@ -17,23 +17,37 @@ namespace ParamID
     inline constexpr const char* output    = "output";
     inline constexpr const char* clipOn    = "clipOn";   // 0.12
     inline constexpr const char* voice     = "voice";    // 0.12: the selected VOICE tile (sets mode, strength, pitch, clip)
+    // 0.13: effects run together, each with its own switch + amount (sfxOn/sfxType/sfxAmount are legacy, ignored)
+    inline constexpr const char* wideOn    = "wideOn";
+    inline constexpr const char* wideAmt   = "wideAmt";
+    inline constexpr const char* shimOn    = "shimOn";
+    inline constexpr const char* shimAmt   = "shimAmt";
+    inline constexpr const char* echoOn    = "echoOn";
+    inline constexpr const char* echoAmt   = "echoAmt";
+    inline constexpr const char* brutalOn  = "brutalOn";
+    inline constexpr const char* brutalAmt = "brutalAmt";
 }
 
-// 0.12 simple UI: one VOICE PRESET tile = finished "commercial" sound: character + how much lower + clip (+ optional SFX).
-struct VoicePreset { const char* name; const char* hint; int mode; float strength; float pitch; bool clip; int sfx; float sfxAmount; };   // sfx -1 = none
+// effect ids used by the UI / presets (order of the 4 buttons)
+inline const char* const kFxOn[4]  = { ParamID::wideOn,  ParamID::shimOn,  ParamID::echoOn,  ParamID::brutalOn };
+inline const char* const kFxAmt[4] = { ParamID::wideAmt, ParamID::shimAmt, ParamID::echoAmt, ParamID::brutalAmt };
+
+// VOICE PRESET tile = finished "commercial" sound: character + how much lower + clip + effects (0 = effect off).
+// 0.13: a little WIDE almost everywhere (mono-safe), CLEAN has none; BRUTAL only in the lowest voices; never more than 3 effects.
+struct VoicePreset { const char* name; const char* hint; int mode; float strength; float pitch; bool clip; float fx[4]; };   // fx: WIDE, SHIMMER, ECHO, BRUTAL
 inline constexpr int kNumVoices = 10;
 inline const VoicePreset kVoices[kNumVoices] =
 {
-    { "CLEAN",    "natural, just better",   0, 0.60f,   0.0f, false, -1, 0.50f },
-    { "RADIO",    "dense FM host",          1, 0.85f,   0.0f, true,  -1, 0.50f },
-    { "CLUB MC",  "cuts through music",     2, 0.85f,   0.0f, true,  -1, 0.50f },
-    { "WARM",     "close & velvet",         3, 0.70f,  -2.0f, false, -1, 0.50f },
-    { "DEEP",     "deep announcer",         3, 0.80f,  -4.0f, true,  -1, 0.50f },
-    { "BIG HOST", "huge stadium voice",     1, 0.90f,  -6.0f, true,   0, 0.35f },
-    { "GIANT",    "heavy & dark",           3, 0.85f,  -9.0f, true,  -1, 0.50f },
-    { "TITAN",    "lowest, massive",        1, 0.90f, -12.0f, true,  -1, 0.50f },
-    { "TRAILER",  "movie trailer voice",    1, 0.90f,  -5.0f, true,   3, 0.55f },
-    { "HYPE MC",  "club host + echo",       2, 0.85f,   0.0f, true,   2, 0.40f },
+    { "CLEAN",    "natural, just better",   0, 0.60f,   0.0f, false, { 0.00f, 0.0f, 0.00f, 0.00f } },
+    { "RADIO",    "dense FM host",          1, 0.85f,   0.0f, true,  { 0.20f, 0.0f, 0.00f, 0.00f } },
+    { "CLUB MC",  "cuts through music",     2, 0.85f,   0.0f, true,  { 0.20f, 0.0f, 0.00f, 0.00f } },
+    { "WARM",     "close & velvet",         3, 0.70f,  -2.0f, false, { 0.25f, 0.0f, 0.00f, 0.00f } },
+    { "DEEP",     "deep announcer",         3, 0.80f,  -4.0f, true,  { 0.25f, 0.0f, 0.00f, 0.00f } },
+    { "BIG HOST", "huge stadium voice",     1, 0.90f,  -6.0f, true,  { 0.30f, 0.0f, 0.00f, 0.00f } },
+    { "GIANT",    "heavy & dark",           3, 0.85f,  -9.0f, true,  { 0.20f, 0.0f, 0.00f, 0.25f } },
+    { "TITAN",    "lowest, massive",        1, 0.90f, -12.0f, true,  { 0.20f, 0.0f, 0.00f, 0.35f } },
+    { "TRAILER",  "movie trailer voice",    1, 0.90f,  -5.0f, true,  { 0.25f, 0.0f, 0.15f, 0.50f } },
+    { "HYPE MC",  "club host + echo",       2, 0.85f,   0.0f, true,  { 0.25f, 0.0f, 0.40f, 0.00f } },
 };
 
 class LiveVoiceProcessor final : public juce::AudioProcessor
@@ -80,7 +94,7 @@ public:
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
-    std::atomic<float>* p[11] {};
+    std::atomic<float>* p[19] {};
     std::vector<float> inCopy;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LiveVoiceProcessor)
 };

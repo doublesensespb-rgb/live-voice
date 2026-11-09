@@ -56,8 +56,10 @@ int main()
         std::vector<float> in (2048), l (2048), r (2048);
         for (int cfg = 0; cfg < 24; ++cfg)
         {
-            lv::Params p; p.mode = cfg % 4; p.pitch = (float) ((cfg * 5) % 25 - 12); p.formant = (float) ((cfg * 3) % 9 - 4);
-            p.sfxOn = cfg >= 4; p.sfxType = (cfg / 4) % 4; p.sfxAmount = (float) (cfg % 5) / 4.0f; p.strength = (float) (cfg % 3) / 2.0f;
+            lv::Params p; p.mode = cfg % 4; p.formant = (float) ((cfg * 5) % 25 - 12);
+            const float am = (float) (cfg % 5) / 4.0f; p.strength = (float) (cfg % 3) / 2.0f;
+            p.wideOn = (cfg & 1) != 0; p.wideAmt = am; p.echoOn = (cfg & 2) != 0; p.echoAmt = am;
+            p.shimOn = (cfg & 4) != 0; p.shimAmt = am; p.brutalOn = (cfg & 8) != 0; p.brutalAmt = am; p.clipOn = (cfg & 16) != 0;
             e.setParams (p);
             double peak = 0, sum = 0; bool bad = false; long total = 0;
             auto t0 = std::chrono::steady_clock::now();
@@ -77,8 +79,8 @@ int main()
             const double ms = std::chrono::duration<double, std::milli> (std::chrono::steady_clock::now() - t0).count();
             const double cpu = ms / 1500.0 * 100.0;
             if (cfg < 8 || bad || peak > 1.0)
-                std::printf ("sr %.0f cfg %2d %-7s %-10s pitch %+5.1f: peak %.3f rms %.3f cpu %.1f%%\n", sr, cfg, lv::kModes[p.mode].name,
-                             p.sfxOn ? lv::kSfx[p.sfxType].name : "-", p.pitch, peak, std::sqrt (sum / total), cpu);
+                std::printf ("sr %.0f cfg %2d %-7s fx %c%c%c%c pitch %+5.1f: peak %.3f rms %.3f cpu %.1f%%\n", sr, cfg, lv::kModes[p.mode].name,
+                             p.wideOn ? 'W' : '-', p.echoOn ? 'E' : '-', p.shimOn ? 'S' : '-', p.brutalOn ? 'B' : '-', p.formant, peak, std::sqrt (sum / total), cpu);
             CHECK (! bad, "NaN/Inf at sr %.0f cfg %d", sr, cfg);
             CHECK (peak <= 1.0, "clipping %.3f at sr %.0f cfg %d", peak, sr, cfg);
             CHECK (std::sqrt (sum / total) > 0.01, "output too quiet at sr %.0f cfg %d", sr, cfg);
@@ -110,7 +112,7 @@ int main()
     // ---- 3. silence in -> silence out (no hiss from auto level / effects) ----
     {
         const double sr = 48000; lv::VoiceEngine e; e.prepare (sr, 512);
-        lv::Params p; p.sfxOn = true; p.sfxType = 1; p.sfxAmount = 1.0f; e.setParams (p);
+        lv::Params p; p.shimOn = true; p.shimAmt = 1.0f; p.wideOn = true; p.echoOn = true; e.setParams (p);
         std::vector<float> in (512), l (512), r (512);
         std::mt19937 nr (3); std::normal_distribution<float> nd (0.0f, 1.0f);
         double peak = 0;
@@ -156,7 +158,8 @@ int main()
         float prev = 0, maxJump = 0; bool bad = false;
         for (int b = 0; b < 3000; ++b)
         {
-            lv::Params p; p.pitch = 12.0f * std::sin (b * 0.01f); p.mode = (b / 300) % 4; p.sfxOn = (b / 500) % 2; p.sfxType = (b / 1000) % 4;
+            lv::Params p; p.formant = 12.0f * std::sin (b * 0.01f); p.mode = (b / 300) % 4;
+            p.wideOn = (b / 500) % 2; p.echoOn = (b / 700) % 2; p.brutalOn = (b / 900) % 2; p.shimOn = (b / 1100) % 2;
             p.mute = (b / 700) % 5 == 4; p.voiceOn = (b / 900) % 3 != 2; e.setParams (p);
             for (int i = 0; i < 128; ++i) in[i] = v.next();
             e.process (in.data(), nullptr, l.data(), r.data(), 128);
@@ -237,6 +240,47 @@ int main()
         const double d = 10 * std::log10 (eo / ei);
         std::printf ("highs at PITCH %+.0f: 8 kHz level %+.1f dB\n", f, d);
         CHECK (std::abs (d) < 3.0, "highs lost at PITCH %+.0f (%.1f dB)", f, d);
+    }
+
+    // ---- 9. WIDE is mono-safe: L+R summed (mono club) stays within 1.5 dB of the voice without WIDE in every band ----
+    {
+        const double sr = 48000;
+        auto bandLevels = [&] (bool wide, std::vector<double>& lv)
+        {
+            lv::VoiceEngine e; e.prepare (sr, 256); lv::Params p; p.voiceOn = false; p.wideOn = wide; p.wideAmt = 1.0f; e.setParams (p); e.reset();
+            std::mt19937 nr (11); std::normal_distribution<float> nd (0.0f, 0.04f);
+            lv::Biquad bands[6]; const float fc[6] = { 200, 500, 1000, 2000, 4000, 8000 };
+            for (int k = 0; k < 6; ++k) bands[k].bp (sr, fc[k], 2.0f);
+            lv.assign (6, 0.0);
+            std::vector<float> in (256), l (256), r (256);
+            for (int b = 0; b < 600; ++b)
+            {
+                for (auto& x : in) x = nd (nr);
+                e.process (in.data(), nullptr, l.data(), r.data(), 256);
+                if (b > 100) for (int i = 0; i < 256; ++i) { const float m = 0.5f * (l[i] + r[i]); for (int k = 0; k < 6; ++k) { const float y = bands[k].process (m); lv[k] += y * y; } }
+            }
+        };
+        std::vector<double> dry, wet; bandLevels (false, dry); bandLevels (true, wet);
+        double worst = 0;
+        for (int k = 0; k < 6; ++k) worst = std::max (worst, std::abs (10 * std::log10 (wet[k] / dry[k])));
+        std::printf ("WIDE in mono: worst band change %.2f dB\n", worst);
+        CHECK (worst < 1.5, "WIDE colours the mono sum by %.2f dB", worst);
+    }
+
+    // ---- 10. BRUTAL: louder body, no NaN/clipping, highs kept, no clicks while it is switched on/off ----
+    {
+        const double sr = 48000; lv::VoiceEngine e; e.prepare (sr, 256);
+        FakeVoice v (sr); std::vector<float> in (256), l (256), r (256);
+        float prev = 0, jump = 0; bool bad = false; double pk = 0;
+        for (int b = 0; b < 1200; ++b)
+        {
+            lv::Params p; p.formant = -5.0f; p.brutalOn = (b / 200) % 2 == 1; p.brutalAmt = 0.8f; p.clipOn = true; e.setParams (p);
+            for (int i = 0; i < 256; ++i) in[i] = v.next();
+            e.process (in.data(), nullptr, l.data(), r.data(), 256);
+            for (int i = 0; i < 256; ++i) { if (! std::isfinite (l[i])) bad = true; jump = std::max (jump, std::abs (l[i] - prev)); prev = l[i]; pk = std::max (pk, (double) std::abs (l[i])); }
+        }
+        std::printf ("BRUTAL: peak %.3f, max jump %.3f\n", pk, jump);
+        CHECK (! bad, "NaN in BRUTAL"); CHECK (pk < 1.0, "BRUTAL clips %.3f", pk); CHECK (jump < 0.9f, "BRUTAL click %.3f", jump);
     }
 
     std::printf (fails ? "\n%d CHECK(S) FAILED\n" : "\nALL TESTS PASSED\n", fails);

@@ -10,8 +10,10 @@ LiveVoiceProcessor::LiveVoiceProcessor()
       apvts (*this, &undo, "LIVEVOICE", createLayout())
 {
     const char* ids[] = { ParamID::voiceOn, ParamID::mode, ParamID::strength, ParamID::pitch, ParamID::formant,
-                          ParamID::sfxOn, ParamID::sfxType, ParamID::sfxAmount, ParamID::mute, ParamID::output, ParamID::clipOn };
-    for (int i = 0; i < 11; ++i) p[i] = apvts.getRawParameterValue (ids[i]);
+                          ParamID::sfxOn, ParamID::sfxType, ParamID::sfxAmount, ParamID::mute, ParamID::output, ParamID::clipOn,
+                          ParamID::wideOn, ParamID::wideAmt, ParamID::shimOn, ParamID::shimAmt, ParamID::echoOn, ParamID::echoAmt,
+                          ParamID::brutalOn, ParamID::brutalAmt };
+    for (int i = 0; i < 19; ++i) p[i] = apvts.getRawParameterValue (ids[i]);
 }
 
 AudioProcessorValueTreeState::ParameterLayout LiveVoiceProcessor::createLayout()
@@ -40,6 +42,14 @@ AudioProcessorValueTreeState::ParameterLayout LiveVoiceProcessor::createLayout()
                                                         AudioParameterFloatAttributes().withStringFromValueFunction ([] (float x, int) { return String (x, 1) + " dB"; })));
     v.push_back (std::make_unique<AudioParameterBool>  (ParameterID { ParamID::clipOn, 1 }, "Clip", true));
     StringArray voices; for (auto& vp : kVoices) voices.add (vp.name);
+    auto pct = AudioParameterFloatAttributes().withStringFromValueFunction ([] (float x, int) { return String (roundToInt (x * 100)) + " %"; });
+    const char* fxNames[4] = { "Wide", "Shimmer", "Echo", "Brutal" };
+    const float fxDef[4] = { 0.20f, 0.40f, 0.40f, 0.50f };
+    for (int k = 0; k < 4; ++k)
+    {
+        v.push_back (std::make_unique<AudioParameterBool>  (ParameterID { kFxOn[k], 1 }, fxNames[k], k == 0));
+        v.push_back (std::make_unique<AudioParameterFloat> (ParameterID { kFxAmt[k], 1 }, String (fxNames[k]) + " Amount", NormalisableRange<float> (0.0f, 1.0f), fxDef[k], pct));
+    }
     v.push_back (std::make_unique<AudioParameterChoice> (ParameterID { ParamID::voice, 1 }, "Voice Preset", voices, 1));
     return { v.begin(), v.end() };
 }
@@ -72,6 +82,11 @@ void LiveVoiceProcessor::processBlock (AudioBuffer<float>& buf, MidiBuffer&)
     q.mute      = p[8]->load() > 0.5f;
     q.outDb     = p[9]->load();
     q.clipOn    = p[10]->load() > 0.5f;
+    q.wideOn    = p[11]->load() > 0.5f;  q.wideAmt   = p[12]->load();
+    q.shimOn    = p[13]->load() > 0.5f;  q.shimAmt   = p[14]->load();
+    q.echoOn    = p[15]->load() > 0.5f;  q.echoAmt   = p[16]->load();
+    q.brutalOn  = p[17]->load() > 0.5f;  q.brutalAmt = p[18]->load();
+    q.sfxOn     = false;   // legacy single effect
     engine.setParams (q);
 
     const int n = buf.getNumSamples();

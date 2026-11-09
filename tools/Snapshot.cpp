@@ -16,16 +16,18 @@ int main (int argc, char** argv)
     ScopedJuceInitialiser_GUI init;
     const File dir (argc > 1 ? File::getCurrentWorkingDirectory().getChildFile (argv[1]) : File::getCurrentWorkingDirectory());
     dir.createDirectory();
-    struct Shot { const char* name; int voice; float knob; };
-    const Shot shots[] = { { "ui-default", 1, 0.0f }, { "ui-trailer", 8, -5.0f }, { "ui-big-host", 5, -6.0f }, { "ui-titan-played", 7, -8.5f }, { "ui-hype", 9, 0.0f } };
+    struct Shot { const char* name; int voice; float knob; bool hidden; };
+    const Shot shots[] = { { "ui-default", 1, 0.0f, false }, { "ui-trailer", 8, -5.0f, false }, { "ui-big-host", 5, -6.0f, false },
+                           { "ui-titan-played", 7, -8.5f, false }, { "ui-hype", 9, 0.0f, false }, { "ui-hidden", 4, -4.0f, true } };
     for (auto& s : shots)
     {
         LiveVoiceProcessor proc;
         const auto& v = kVoices[s.voice];
         setP (proc, ParamID::voice, (float) s.voice); setP (proc, ParamID::mode, (float) v.mode); setP (proc, ParamID::strength, v.strength);
         setP (proc, ParamID::formant, s.knob); setP (proc, ParamID::clipOn, v.clip ? 1.0f : 0.0f);
-        setP (proc, ParamID::sfxOn, v.sfx >= 0 ? 1.0f : 0.0f); if (v.sfx >= 0) { setP (proc, ParamID::sfxType, (float) v.sfx); setP (proc, ParamID::sfxAmount, v.sfxAmount); }
-        proc.engine.inLevel = 0.35f; proc.engine.outLevel = 0.6f; proc.engine.sfxActivity = v.sfx >= 0 ? 0.6f : 0.0f;
+        for (int k = 0; k < 4; ++k) { setP (proc, kFxOn[k], v.fx[k] > 0 ? 1.0f : 0.0f); if (v.fx[k] > 0) setP (proc, kFxAmt[k], v.fx[k]); }
+        proc.apvts.state.setProperty ("showControls", ! s.hidden, nullptr);
+        proc.engine.inLevel = 0.35f; proc.engine.outLevel = 0.6f; proc.engine.sfxActivity = 0.6f;
         std::unique_ptr<AudioProcessorEditor> ed (proc.createEditor());
         auto* e = dynamic_cast<LiveVoiceEditor*> (ed.get());
         for (int i = 0; i < 12; ++i) e->tick();

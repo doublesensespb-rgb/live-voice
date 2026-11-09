@@ -134,9 +134,9 @@ struct ModeSpec
 };
 inline const ModeSpec kModes[4] =
 {
-    { "NATURAL", "clean & even",        90.0f, -2.0f, 320.0f, -22.0f, 2.5f, 1.0f, 140.0f, 2.5f, 4200.0f, 1.5f, 0.55f, 0.10f },
-    { "RADIO",   "dense FM host",       80.0f, -3.5f, 340.0f, -30.0f, 5.0f, 3.5f, 130.0f, 3.5f, 3600.0f, 2.5f, 0.80f, 0.35f },
-    { "CLUB",    "cuts through music", 140.0f, -4.0f, 300.0f, -32.0f, 6.0f, 0.0f, 150.0f, 5.5f, 3000.0f, 3.0f, 0.90f, 0.30f },
+    { "NATURAL", "clean & even",        90.0f, -2.0f, 320.0f, -22.0f, 2.5f, 1.0f, 140.0f, 2.5f, 4200.0f, 1.0f, 0.55f, 0.10f },
+    { "RADIO",   "dense FM host",       80.0f, -3.5f, 340.0f, -30.0f, 5.0f, 3.5f, 130.0f, 3.5f, 3600.0f, 1.5f, 0.80f, 0.35f },
+    { "CLUB",    "cuts through music", 140.0f, -4.0f, 300.0f, -32.0f, 6.0f, 0.0f, 150.0f, 5.0f, 3000.0f, 2.0f, 0.90f, 0.30f },
     { "DEEP",    "warm & low",          60.0f, -2.5f, 420.0f, -26.0f, 3.5f, 4.5f, 110.0f, 1.5f, 4000.0f, -1.0f, 0.60f, 0.25f },
 };
 
@@ -243,6 +243,8 @@ public:
     {
         fs = sr; maxN = std::max (32, maxBlock);
         main.prepare (sr, maxN); demon.prepare (sr, maxN); shimmerPs.prepare (sr, maxN);
+        gateBuf.assign ((size_t) maxN, 0);
+        gateDl.init (main.latency() + 64); dryDl.init (main.latency() + 64);
         mono.assign ((size_t) maxN, 0); pitched.assign ((size_t) maxN, 0); demonBuf.assign ((size_t) maxN, 0);
         shimIn.assign ((size_t) maxN, 0); shimOut.assign ((size_t) maxN, 0);
         wideDl.init ((int) (sr * 0.06)); echoL.init ((int) (sr * 1.2)); echoR.init ((int) (sr * 1.2));
@@ -255,6 +257,9 @@ public:
         main.reset(); demon.reset(); shimmerPs.reset();
         for (auto* b : { &hpf1, &hpf2, &mud, &body, &pres, &air, &deessDet, &deessSplit, &demonLp, &echoHpL, &echoLpL, &echoHpR, &echoLpR, &shimHp })
             b->reset();
+        gateDl.clear(); dryDl.clear(); noiseFloor = 1.0e-3f; lvlEnv = 0;
+        for (auto& m : segMin) m = 1.0f; segCur = 1.0f; segPos = segCount = 0;
+        for (auto* b : { &xLp1, &xLp2, &xHp1, &xHp2 }) b->reset();
         wideDl.clear(); echoL.clear(); echoR.clear(); fdn.clear();
         gateEnv = 0; gateGain = 0; compEnv = 0; deessEnv = 0; limGain = 1; shimFbL = shimFbR = 0; voiceEnv = 0;
         pitchSm = cur.pitch; formantSm = cur.formant; muteGain = cur.mute ? 0.0f : 1.0f;
@@ -293,6 +298,12 @@ private:
     float pitchSm = 0, formantSm = 0, muteGain = 1, voiceMix = 1, sfxMix = 0, demonMix = 0, shimFbL = 0, shimFbR = 0;
     float directMix = 1, directHold = 0;   // 1 = voice bypasses the pitch shifter (no latency)
     float agcDb = 0, agcEnv = 0;           // auto level
+    int gateHold = 0;
+    float noiseFloor = 1.0e-3f, lvlEnv = 0;  // room noise tracker (sets the gate threshold)
+    float segMin[8] { 1, 1, 1, 1, 1, 1, 1, 1 }; float segCur = 1; int segPos = 0, segCount = 0;   // rolling minimum over ~1.6 s
+    DelayLine gateDl, dryDl;                 // gate gain / dry voice delayed by the shifter latency
+    Biquad xLp1, xLp2, xHp1, xHp2;           // 4.5 kHz Linkwitz-Riley crossover: highs of the original voice
+    std::vector<float> gateBuf;
     AdaaClipper clipL, clipR; float clipMix = 0;
     float lfoPhase[4] { 0.0f, 0.25f, 0.5f, 0.75f };
     int lastMode = -1; float lastStrength = -1;
@@ -314,6 +325,7 @@ private:
         echoHpL.hp (fs, 450.0f); echoHpR.hp (fs, 450.0f);
         echoLpL.lp (fs, 4200.0f); echoLpR.lp (fs, 4200.0f);
         shimHp.hp (fs, 500.0f);
+        xLp1.lp (fs, 4500.0f); xLp2.lp (fs, 4500.0f); xHp1.hp (fs, 4500.0f); xHp2.hp (fs, 4500.0f);
         lastMode = cur.mode; lastStrength = s;
     }
 
@@ -322,6 +334,11 @@ private:
         if (cur.mode != lastMode || std::abs (cur.strength - lastStrength) > 0.001f) updateFilters();
         const auto& m = kModes[std::clamp (cur.mode, 0, 3)];
         const float s = cur.strength;
+
+        const float cNoiseA = coefMs (5.0f, fs), cNoiseR = coefMs (60.0f, fs);
+        const int segLen = (int) (fs * 0.2);
+        const float cGateA = coefMs (1.0f, fs), cGateR = coefMs (40.0f, fs), cGgA = coefMs (2.0f, fs), cGgR = coefMs (70.0f, fs);
+        const int holdLen = (int) (fs * 0.12);
 
         // ---- input: pick / average the channels that carry signal ----
         float eL = 0, eR = 0;
@@ -337,20 +354,31 @@ private:
             // HPF only when the voice chain is on
             const float h = hpf2.process (hpf1.process (x));
             x = x + (h - x) * voiceMix;
-            // GATE (soft downward expander)
+            // NOISE TRACKER: the quietest moment of the last ~1.6 s (gaps between words) = room noise
             const float a = std::abs (x);
-            gateEnv = a > gateEnv ? a + (gateEnv - a) * coefMs (1.0f, fs) : a + (gateEnv - a) * coefMs (120.0f, fs);
-            const float thr = dbToGain (-52.0f);
-            float target = gateEnv >= thr ? 1.0f : std::pow (gateEnv / thr, 2.0f);
+            lvlEnv = a > lvlEnv ? a + (lvlEnv - a) * cNoiseA : a + (lvlEnv - a) * cNoiseR;
+            segCur = std::min (segCur, lvlEnv);
+            if (++segCount >= segLen)
+            {
+                segMin[segPos] = segCur; segPos = (segPos + 1) & 7; segCur = 1.0f; segCount = 0;
+                float mn = 1.0f; for (float v : segMin) mn = std::min (mn, v);
+                noiseFloor = std::clamp (mn, 3.0e-5f, 0.006f);
+            }
+            // GATE (downward expander 1:5): threshold 13 dB over the room noise, never below -62 dBFS
+            gateEnv = a > gateEnv ? a + (gateEnv - a) * cGateA : a + (gateEnv - a) * cGateR;
+            const float thr = std::max (dbToGain (-62.0f), noiseFloor * 4.5f);   // +13 dB over the room noise
+            if (gateEnv >= thr) gateHold = holdLen; else if (gateHold > 0) --gateHold;   // 120 ms hold keeps word endings
+            float target = (gateEnv >= thr || gateHold > 0) ? 1.0f : std::max (0.003f, std::pow (gateEnv / thr, 4.0f));
             target = 1.0f + (target - 1.0f) * voiceMix;
-            gateGain = target > gateGain ? target + (gateGain - target) * coefMs (2.0f, fs) : target + (gateGain - target) * coefMs (180.0f, fs);
+            gateGain = target > gateGain ? target + (gateGain - target) * cGgA : target + (gateGain - target) * cGgR;
             x *= gateGain;
+            gateBuf[(size_t) i] = gateGain;
             // AUTO LEVEL: measure only while the voice is clearly present, move slowly (max ~3 dB/s)
             if (gateEnv > thr * 6.0f)
             {
                 agcEnv += (x * x - agcEnv) * 0.0005f;
                 const float rmsDb = 10.0f * std::log10 (agcEnv + 1e-12f) + agcDb;
-                const float want = std::clamp (-20.0f - (rmsDb - agcDb), -6.0f, 18.0f);
+                const float want = std::clamp (-20.0f - (rmsDb - agcDb), -6.0f, 12.0f);
                 agcDb += (want - agcDb) * (float) (3.0 / fs / 6.0);
             }
             x *= dbToGain (agcDb * voiceMix);
@@ -364,6 +392,17 @@ private:
         formantSm = cur.formant + (formantSm - cur.formant) * gl;
         main.setShift (pitchSm, formantSm);
         main.process (mono.data(), pitched.data(), n);
+        {
+            // keep the ORIGINAL highs (sibilance, air) when the voice is made lower/higher: only the body is shifted
+            const float lat = (float) main.latency();
+            for (int i = 0; i < n; ++i)
+            {
+                dryDl.push (mono[(size_t) i]);
+                const float hiOrig = xHp2.process (xHp1.process (dryDl.read (lat)));
+                const float loShift = xLp2.process (xLp1.process (pitched[(size_t) i]));
+                pitched[(size_t) i] = loShift + hiOrig;   // LR4: low + high sum flat (in phase)
+            }
+        }
 
         // ---- BRUTAL layer (parallel, same latency as the main path) ----
         const bool demonActive = cur.sfxOn && cur.sfxType == 3;
@@ -399,7 +438,7 @@ private:
         // ---- VOICE CHAIN ----
         const float vTarget = cur.voiceOn ? 1.0f : 0.0f;
         const float thrDb = -10.0f + (m.thrDb + 10.0f) * s, ratio = 1.0f + (m.ratio - 1.0f) * s;
-        const float makeup = dbToGain ((-thrDb) * (1.0f - 1.0f / ratio) * 0.55f);
+        const float makeup = dbToGain ((-thrDb) * (1.0f - 1.0f / ratio) * 0.5f);
         const float aC = coefMs (3.0f, fs), rC = coefMs (130.0f, fs);
         const float aD = coefMs (1.0f, fs), rD = coefMs (60.0f, fs);
         const float warm = m.warmth * s;
@@ -434,6 +473,17 @@ private:
             pitched[(size_t) i] = dry + (x - dry) * vm;
         }
         gainReduction.store (-grMax * voiceMix);
+
+        // ---- NOISE DUCK after the compressor: the same gate again, so pauses end up quieter than the input ----
+        {
+            const float lat = (1.0f - directMix) * (float) main.latency();
+            for (int i = 0; i < n; ++i)
+            {
+                gateDl.push (gateBuf[(size_t) i]);
+                const float gg = lat < 1.0f ? gateBuf[(size_t) i] : gateDl.read (std::max (1.0f, lat));
+                pitched[(size_t) i] *= 1.0f + (gg - 1.0f) * voiceMix;
+            }
+        }
 
         // ---- SFX (stereo) ----
         const float sfxTarget = cur.sfxOn ? 1.0f : 0.0f;

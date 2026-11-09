@@ -12,7 +12,6 @@ LiveVoiceProcessor::LiveVoiceProcessor()
     const char* ids[] = { ParamID::voiceOn, ParamID::mode, ParamID::strength, ParamID::pitch, ParamID::formant,
                           ParamID::sfxOn, ParamID::sfxType, ParamID::sfxAmount, ParamID::mute, ParamID::output, ParamID::clipOn };
     for (int i = 0; i < 11; ++i) p[i] = apvts.getRawParameterValue (ids[i]);
-    installFactoryPresets();
 }
 
 AudioProcessorValueTreeState::ParameterLayout LiveVoiceProcessor::createLayout()
@@ -39,7 +38,9 @@ AudioProcessorValueTreeState::ParameterLayout LiveVoiceProcessor::createLayout()
     v.push_back (std::make_unique<AudioParameterBool>  (ParameterID { ParamID::mute, 1 }, "Mute", false));
     v.push_back (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::output, 1 }, "Output", NormalisableRange<float> (-24.0f, 12.0f, 0.1f), 0.0f,
                                                         AudioParameterFloatAttributes().withStringFromValueFunction ([] (float x, int) { return String (x, 1) + " dB"; })));
-    v.push_back (std::make_unique<AudioParameterBool>  (ParameterID { ParamID::clipOn, 1 }, "Clip", false));
+    v.push_back (std::make_unique<AudioParameterBool>  (ParameterID { ParamID::clipOn, 1 }, "Clip", true));
+    StringArray voices; for (auto& vp : kVoices) voices.add (vp.name);
+    v.push_back (std::make_unique<AudioParameterChoice> (ParameterID { ParamID::voice, 1 }, "Voice Preset", voices, 1));
     return { v.begin(), v.end() };
 }
 

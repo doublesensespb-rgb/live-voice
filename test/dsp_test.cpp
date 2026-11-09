@@ -201,6 +201,44 @@ int main()
         CHECK (first >= 0 && first <= 2, "clip adds latency (%d)", first);
     }
 
+    // ---- 7. NOISE: hiss at -55 dBFS + speech with pauses -> the pauses must be QUIETER at the output than at the input ----
+    for (int mode = 0; mode < 4; ++mode)
+    {
+        const double sr = 48000; lv::VoiceEngine e; e.prepare (sr, 256);
+        lv::Params p; p.mode = mode; p.strength = 0.9f; p.clipOn = true; p.formant = mode == 3 ? -6.0f : 0.0f; e.setParams (p); e.reset();
+        FakeVoice v (sr); std::mt19937 nr (5); std::normal_distribution<float> nd (0.0f, 1.0f);
+        std::vector<float> in (256), l (256), r (256);
+        double inN = 0, outN = 0; long cnt = 0;
+        for (int b = 0; b < 1500; ++b)
+        {
+            const bool talking = (b / 150) % 2 == 0;   // 0.8 s speech, 0.8 s pause
+            for (int i = 0; i < 256; ++i) { const float sp = v.next(); in[i] = (talking ? sp : 0.0f) + nd (nr) * 0.0018f; }
+            e.process (in.data(), nullptr, l.data(), r.data(), 256);
+            if (! talking && b % 150 > 60 && b > 300)
+                for (int i = 0; i < 256; ++i) { inN += in[i] * in[i]; outN += l[i] * l[i]; ++cnt; }
+        }
+        const double inDb = 10 * std::log10 (inN / cnt), outDb = 10 * std::log10 (outN / cnt + 1e-20);
+        std::printf ("noise in pauses (%s): input %.1f dBFS -> output %.1f dBFS\n", lv::kModes[mode].name, inDb, outDb);
+        CHECK (outDb < inDb - 3.0, "pauses got louder/not quieter in %s (%.1f -> %.1f)", lv::kModes[mode].name, inDb, outDb);
+    }
+
+    // ---- 8. HIGHS stay when the voice is lowered: an 8 kHz tone keeps its level at PITCH -6 / -12 ----
+    for (float f : { -6.0f, -12.0f })
+    {
+        const double sr = 48000; lv::VoiceEngine e; e.prepare (sr, 256);
+        lv::Params p; p.voiceOn = false; p.formant = f; e.setParams (p); e.reset();
+        std::vector<float> in (256), l (256), r (256); double ei = 0, eo = 0; long t = 0;
+        for (int b = 0; b < 400; ++b)
+        {
+            for (int i = 0; i < 256; ++i, ++t) in[i] = 0.25f * std::sin (2.0f * lv::kPi * 8000.0f * (float) t / 48000.0f);
+            e.process (in.data(), nullptr, l.data(), r.data(), 256);
+            if (b > 200) for (int i = 0; i < 256; ++i) { ei += in[i] * in[i]; eo += l[i] * l[i]; }
+        }
+        const double d = 10 * std::log10 (eo / ei);
+        std::printf ("highs at PITCH %+.0f: 8 kHz level %+.1f dB\n", f, d);
+        CHECK (std::abs (d) < 3.0, "highs lost at PITCH %+.0f (%.1f dB)", f, d);
+    }
+
     std::printf (fails ? "\n%d CHECK(S) FAILED\n" : "\nALL TESTS PASSED\n", fails);
     return fails ? 1 : 0;
 }

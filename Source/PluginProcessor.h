@@ -16,7 +16,25 @@ namespace ParamID
     inline constexpr const char* mute      = "mute";
     inline constexpr const char* output    = "output";
     inline constexpr const char* clipOn    = "clipOn";   // 0.12
+    inline constexpr const char* voice     = "voice";    // 0.12: the selected VOICE tile (sets mode, strength, pitch, clip)
 }
+
+// 0.12 simple UI: one VOICE PRESET tile = finished "commercial" sound: character + how much lower + clip (+ optional SFX).
+struct VoicePreset { const char* name; const char* hint; int mode; float strength; float pitch; bool clip; int sfx; float sfxAmount; };   // sfx -1 = none
+inline constexpr int kNumVoices = 10;
+inline const VoicePreset kVoices[kNumVoices] =
+{
+    { "CLEAN",    "natural, just better",   0, 0.60f,   0.0f, false, -1, 0.50f },
+    { "RADIO",    "dense FM host",          1, 0.85f,   0.0f, true,  -1, 0.50f },
+    { "CLUB MC",  "cuts through music",     2, 0.85f,   0.0f, true,  -1, 0.50f },
+    { "WARM",     "close & velvet",         3, 0.70f,  -2.0f, false, -1, 0.50f },
+    { "DEEP",     "deep announcer",         3, 0.80f,  -4.0f, true,  -1, 0.50f },
+    { "BIG HOST", "huge stadium voice",     1, 0.90f,  -6.0f, true,   0, 0.35f },
+    { "GIANT",    "heavy & dark",           3, 0.85f,  -9.0f, true,  -1, 0.50f },
+    { "TITAN",    "lowest, massive",        1, 0.90f, -12.0f, true,  -1, 0.50f },
+    { "TRAILER",  "movie trailer voice",    1, 0.90f,  -5.0f, true,   3, 0.55f },
+    { "HYPE MC",  "club host + echo",       2, 0.85f,   0.0f, true,   2, 0.40f },
+};
 
 class LiveVoiceProcessor final : public juce::AudioProcessor
 {

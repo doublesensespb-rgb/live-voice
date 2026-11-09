@@ -51,6 +51,16 @@ LiveVoiceLook::LiveVoiceLook()
     setDefaultSansSerifTypeface (interFace (false));
 }
 
+void LiveVoiceLook::drawLinearSlider (Graphics& g, int x, int y, int w, int h, float pos, float, float, Slider::SliderStyle st, Slider& s)
+{
+    if (st != Slider::LinearBar) { LookAndFeel_V4::drawLinearSlider (g, x, y, w, h, pos, 0, 0, st, s); return; }
+    auto r = Rectangle<int> (x, y, w, h).toFloat();
+    g.setColour (Palette::screen); g.fillRoundedRectangle (r, r.getHeight() * 0.5f);
+    auto f = r.withRight (jmax (r.getX() + r.getHeight(), pos));
+    g.setColour (Palette::accent); g.fillRoundedRectangle (f, r.getHeight() * 0.5f);
+    g.setColour (Palette::track); g.fillEllipse (Rectangle<float> (r.getHeight() + 4, r.getHeight() + 4).withCentre ({ f.getRight() - r.getHeight() * 0.5f, r.getCentreY() }));
+}
+
 Font LiveVoiceLook::getComboBoxFont (ComboBox&) { return uiFont (14.5f); }
 Font LiveVoiceLook::getPopupMenuFont() { return uiFont (15.0f); }
 
@@ -259,48 +269,10 @@ void LevelMeter::paint (Graphics& g)
     }
 }
 
-void SfxScreen::paint (Graphics& g)
+// copper icons (strict and geometric), shared by the SFX buttons
+static void drawSfxIcon (Graphics& g, int type, Point<float> c, float s, bool on, float activity)
 {
-    auto r = getLocalBounds().toFloat();
-    // dark screen like GRAIN FORM's displays
-    g.setColour (Palette::screen);
-    g.fillRoundedRectangle (r, 10.0f);
-    g.setGradientFill (ColourGradient (Palette::accent.withAlpha (on ? 0.10f + 0.12f * activity : 0.0f), r.getCentreX(), r.getY() + 62,
-                                       Colours::transparentBlack, r.getCentreX(), r.getY() + 62 + r.getWidth() * 0.55f, true));
-    g.fillRoundedRectangle (r, 10.0f);
-    g.setColour (Colours::white.withAlpha (0.05f));
-    g.drawRoundedRectangle (r.reduced (0.5f), 10.0f, 1.0f);
-
-    const Colour col = on ? Palette::glow : Palette::textDim.withAlpha (0.55f);
-    const auto c = Point<float> (r.getCentreX(), r.getY() + 62);
-    const float s = 30.0f;
-    Path p;
-    float stroke = 2.2f;
-    switch (type)
-    {
-        case 0:   // WIDE: three overlapping rings
-            for (int i = -1; i <= 1; ++i) p.addEllipse (Rectangle<float> (s * 1.25f, s * 1.25f).withCentre (c.translated (i * s * 0.62f, 0)));
-            break;
-        case 1:   // SHIMMER: light spreading in rings from a bright core
-            p.addEllipse (Rectangle<float> (8, 8).withCentre (c));
-            break;
-        case 2:   // ECHO THROW: a dot and arcs that get weaker
-        {
-            const auto o = c.translated (-s * 0.95f, 0);
-            p.addEllipse (Rectangle<float> (9, 9).withCentre (o));
-            break;
-        }
-        default:  // BRUTAL: three heavy chevrons going down
-            for (int i = 0; i < 3; ++i)
-            {
-                const float y = c.y - s * 0.62f + (float) i * s * 0.48f;
-                p.startNewSubPath (c.x - s * 0.82f, y);
-                p.lineTo (c.x, y + s * 0.52f);
-                p.lineTo (c.x + s * 0.82f, y);
-            }
-            stroke = 3.4f;
-            break;
-    }
+    const Colour col = on ? Palette::glow : Palette::textDim.withAlpha (0.75f);
     auto drawGlow = [&] (const Path& path, float w, Colour cc)
     {
         if (on)
@@ -310,10 +282,29 @@ void SfxScreen::paint (Graphics& g)
         }
         g.setColour (cc); g.strokePath (path, PathStrokeType (w, PathStrokeType::curved, PathStrokeType::rounded));
     };
-    drawGlow (p, stroke, col);
-    if (type == 2)
+    const float stroke = jmax (1.4f, s * 0.07f);
+    if (type == 0)
     {
-        const auto o = c.translated (-s * 0.95f, 0);
+        Path p; for (int i = -1; i <= 1; ++i) p.addEllipse (Rectangle<float> (s * 1.25f, s * 1.25f).withCentre (c.translated (i * s * 0.62f, 0)));
+        drawGlow (p, stroke, col);
+    }
+    else if (type == 1)
+    {
+        Path core; core.addEllipse (Rectangle<float> (s * 0.25f, s * 0.25f).withCentre (c));
+        drawGlow (core, stroke, col);
+        for (int i = 1; i <= 3; ++i)
+        {
+            Path ring; const float rr = s * 0.36f * (float) i;
+            ring.addEllipse (Rectangle<float> (rr * 2, rr * 2).withCentre (c));
+            const Colour rc = col.withMultipliedAlpha (1.0f - 0.3f * (float) (i - 1));
+            if (i == 1) drawGlow (ring, stroke, rc); else { g.setColour (rc); g.strokePath (ring, PathStrokeType (stroke * 0.7f)); }
+        }
+    }
+    else if (type == 2)
+    {
+        const auto o = c.translated (-s * 0.85f, 0);
+        Path dot; dot.addEllipse (Rectangle<float> (s * 0.28f, s * 0.28f).withCentre (o));
+        drawGlow (dot, stroke, col);
         for (int i = 1; i <= 4; ++i)
         {
             Path a; const float rr = s * 0.42f * (float) i;
@@ -321,127 +312,72 @@ void SfxScreen::paint (Graphics& g)
             drawGlow (a, stroke, col.withMultipliedAlpha (1.0f - 0.2f * (float) (i - 1)));
         }
     }
-    if (type == 1)
+    else
     {
-        for (int i = 1; i <= 3; ++i)
+        Path p;
+        for (int i = 0; i < 3; ++i)
         {
-            Path ring; const float rr = s * 0.36f * (float) i;
-            ring.addEllipse (Rectangle<float> (rr * 2, rr * 2).withCentre (c));
-            const Colour rc = col.withMultipliedAlpha (1.0f - 0.3f * (float) (i - 1));
-            if (i == 1) drawGlow (ring, stroke, rc);
-            else { g.setColour (rc); g.strokePath (ring, PathStrokeType (1.6f)); }
+            const float y = c.y - s * 0.62f + (float) i * s * 0.44f;
+            p.startNewSubPath (c.x - s * 0.8f, y); p.lineTo (c.x, y + s * 0.5f); p.lineTo (c.x + s * 0.8f, y);
         }
-    }
-    if (type == 3)
-    {
-        // a solid floor line under the chevrons
-        Path floor; floor.startNewSubPath (c.x - s * 1.0f, c.y + s * 1.12f); floor.lineTo (c.x + s * 1.0f, c.y + s * 1.12f);
-        drawGlow (floor, 2.0f, col.withMultipliedAlpha (0.7f));
-    }
-
-    // name + hint + dots
-    g.setColour (on ? Palette::text : Palette::textDim);
-    g.setFont (uiFont (17.0f, true, 0.16f));
-    g.drawText (lv::kSfx[type].name, Rectangle<float> (r.getX(), r.getY() + 112, r.getWidth(), 22).toNearestInt(), Justification::centred);
-    g.setColour (Palette::textDim);
-    g.setFont (uiFont (11.5f));
-    g.drawText (lv::kSfx[type].hint, Rectangle<float> (r.getX(), r.getY() + 134, r.getWidth(), 16).toNearestInt(), Justification::centred);
-    for (int i = 0; i < 4; ++i)
-    {
-        auto d = Rectangle<float> (5, 5).withCentre ({ r.getCentreX() + (i - 1.5f) * 12.0f, r.getBottom() - 14.0f });
-        g.setColour (i == type ? (on ? Palette::accent : Palette::text) : Colours::white.withAlpha (0.18f));
-        g.fillEllipse (d);
+        drawGlow (p, stroke * 1.5f, col);
+        Path floor; floor.startNewSubPath (c.x - s * 0.95f, c.y + s * 0.98f); floor.lineTo (c.x + s * 0.95f, c.y + s * 0.98f);
+        drawGlow (floor, stroke, col.withMultipliedAlpha (0.7f));
     }
 }
 
-// ============================================================================
-SaveOverlay::SaveOverlay (LiveVoiceProcessor& p) : proc (p)
+void SfxButton::paintButton (Graphics& g, bool over, bool)
 {
-    for (auto* t : { &name, &newFolder })
+    auto r = getLocalBounds().toFloat().reduced (0.5f);
+    const bool on = getToggleState();
+    auto box = r.withHeight (r.getHeight() - 22.0f);
+    g.setColour (Palette::screen);
+    g.fillRoundedRectangle (box, 10.0f);
+    if (on)
     {
-        t->setFont (uiFont (15.0f));
-        t->setColour (TextEditor::backgroundColourId, Palette::screen);
-        t->setColour (TextEditor::textColourId, Palette::text);
-        t->setColour (TextEditor::outlineColourId, Colours::white.withAlpha (0.08f));
-        t->setColour (TextEditor::focusedOutlineColourId, Palette::accent);
-        t->setColour (TextEditor::highlightColourId, Palette::accent.withAlpha (0.35f));
-        t->setColour (CaretComponent::caretColourId, Palette::accent);
-        t->setIndents (10, 7);
-        t->setInputRestrictions (60, {});
-        addAndMakeVisible (t);
+        g.setGradientFill (ColourGradient (Palette::accent.withAlpha (0.18f + 0.12f * activity), box.getCentreX(), box.getCentreY(),
+                                           Colours::transparentBlack, box.getCentreX(), box.getBottom() + 10, true));
+        g.fillRoundedRectangle (box, 10.0f);
     }
-    name.setTextToShowWhenEmpty ("Preset name", Palette::textDim);
-    newFolder.setTextToShowWhenEmpty ("New folder name", Palette::textDim);
-    name.onTextChange = [this] { updateSaveText(); };
-    name.onReturnKey = [this] { save.triggerClick(); };
-    name.onEscapeKey = [this] { cancel.triggerClick(); };
-    newFolder.onTextChange = [this] { updateSaveText(); };
-    folder.setColour (ComboBox::backgroundColourId, Palette::screen);
-    folder.setColour (ComboBox::textColourId, Palette::text);
-    folder.setColour (ComboBox::outlineColourId, Colours::white.withAlpha (0.08f));
-    folder.setColour (ComboBox::arrowColourId, Palette::textDim);
-    folder.onChange = [this] { newFolder.setVisible (folder.getSelectedId() == 2); updateSaveText(); resized(); };
-    addAndMakeVisible (folder);
-    save.getProperties().set ("kind", "primary");
-    cancel.onClick = [this] { setVisible (false); if (onDone) onDone(); };
-    save.onClick = [this]
-    {
-        String f = folder.getSelectedId() == 2 ? newFolder.getText().trim() : folder.getSelectedId() == 1 ? String() : folder.getText();
-        if (name.getText().trim().isEmpty()) { name.grabKeyboardFocus(); return; }
-        if (proc.savePreset (name.getText(), f)) { setVisible (false); if (onDone) onDone(); }
-    };
-    addAndMakeVisible (cancel); addAndMakeVisible (save);
-    setVisible (false);
+    g.setColour (on ? Palette::accent : Colours::white.withAlpha (over ? 0.14f : 0.06f));
+    g.drawRoundedRectangle (box.reduced (0.5f), 10.0f, on ? 1.4f : 1.0f);
+    drawSfxIcon (g, type, box.getCentre(), box.getHeight() * 0.27f, on, activity);
+    g.setColour (on ? Palette::glow : Palette::label);
+    g.setFont (uiFont (11.5f, true, 0.10f));
+    static const char* shortName[4] = { "WIDE", "SHIMMER", "ECHO", "BRUTAL" };
+    g.drawText (shortName[jlimit (0, 3, type)], r.withTop (box.getBottom() + 4).toNearestInt(), Justification::centredTop);
 }
 
-void SaveOverlay::open()
+void VoiceTile::paintButton (Graphics& g, bool over, bool)
 {
-    folder.clear (dontSendNotification);
-    folder.addItem ("(no folder)", 1);
-    folder.addItem ("+ New folder...", 2);
-    folder.addSeparator();
-    int id = 10, sel = 1;
-    const String cur = proc.presetFile.existsAsFile() && proc.presetFile.getParentDirectory() != LiveVoiceProcessor::presetRoot()
-                         ? proc.presetFile.getParentDirectory().getFileName() : String();
-    for (auto& f : proc.listFolders()) { if (f == "Factory") { ++id; continue; } folder.addItem (f, id); if (f == cur) sel = id; ++id; }
-    folder.setSelectedId (sel, dontSendNotification);
-    newFolder.setVisible (false); newFolder.clear();
-    name.setText (proc.presetName == "INIT" ? String() : proc.presetName, false);
-    updateSaveText();
-    setVisible (true); toFront (true); resized();
-    name.grabKeyboardFocus(); name.selectAll();
-}
-
-void SaveOverlay::updateSaveText()
-{
-    const String f = folder.getSelectedId() == 2 ? newFolder.getText().trim() : folder.getSelectedId() == 1 ? String() : folder.getText();
-    auto dir = f.isEmpty() ? LiveVoiceProcessor::presetRoot() : LiveVoiceProcessor::presetRoot().getChildFile (File::createLegalFileName (f));
-    const bool exists = name.getText().trim().isNotEmpty() && dir.getChildFile (File::createLegalFileName (name.getText().trim()) + ".lvpreset").existsAsFile();
-    save.setButtonText (exists ? "REPLACE" : "SAVE");
-}
-
-void SaveOverlay::paint (Graphics& g)
-{
-    g.fillAll (Colours::black.withAlpha (0.55f));
-    panelBox (g, box.toFloat());
-    g.setColour (Palette::accent.withAlpha (0.6f));
-    g.drawRoundedRectangle (box.toFloat().reduced (0.5f), 12.0f, 1.0f);
-    caption (g, "SAVE PRESET", box.withHeight (54).withTrimmedLeft (24), Justification::centredLeft, Palette::text, 14.0f);
-    g.setColour (Palette::textDim); g.setFont (uiFont (11.0f));
-    g.drawText ("Documents / LIVE VOICE / Presets", box.withHeight (54).withTrimmedRight (24), Justification::centredRight);
-    caption (g, "NAME", Rectangle<int> (box.getX() + 24, name.getY() - 20, 100, 16), Justification::centredLeft, Palette::textDim, 11.0f);
-    caption (g, "FOLDER", Rectangle<int> (box.getX() + 24, folder.getY() - 20, 100, 16), Justification::centredLeft, Palette::textDim, 11.0f);
-}
-
-void SaveOverlay::resized()
-{
-    const int bh = newFolder.isVisible() ? 300 : 256;
-    box = Rectangle<int> (420, bh).withCentre (getLocalBounds().getCentre());
-    name.setBounds (box.getX() + 24, box.getY() + 74, box.getWidth() - 48, 34);
-    folder.setBounds (box.getX() + 24, name.getBottom() + 30, box.getWidth() - 48, 32);
-    newFolder.setBounds (box.getX() + 24, folder.getBottom() + 10, box.getWidth() - 48, 32);
-    save.setBounds (box.getRight() - 24 - 110, box.getBottom() - 24 - 34, 110, 34);
-    cancel.setBounds (save.getX() - 10 - 100, save.getY(), 100, 34);
+    auto r = getLocalBounds().toFloat().reduced (0.5f);
+    const bool on = getToggleState();
+    const auto& v = kVoices[index];
+    g.setColour (on ? Palette::accent.withAlpha (0.14f) : (over ? Palette::buttonHi : Palette::button).withAlpha (0.55f));
+    g.fillRoundedRectangle (r, 9.0f);
+    g.setColour (on ? Palette::accent : Colours::white.withAlpha (over ? 0.12f : 0.05f));
+    g.drawRoundedRectangle (r.reduced (0.5f), 9.0f, on ? 1.5f : 1.0f);
+    // LED
+    auto led = Rectangle<float> (8, 8).withCentre ({ r.getX() + 19.0f, r.getCentreY() });
+    if (on) { g.setColour (Palette::accent.withAlpha (0.25f)); g.fillEllipse (led.expanded (4)); g.setColour (Palette::glow); g.fillEllipse (led); }
+    else { g.setColour (Palette::textDim.withAlpha (0.7f)); g.drawEllipse (led.reduced (0.6f), 1.2f); }
+    // name + hint
+    auto t = r.toNearestInt().withTrimmedLeft (36).withTrimmedRight (62).reduced (0, 10);
+    g.setColour (on ? Palette::glow : Palette::text);
+    g.setFont (uiFont (16.0f, true, 0.10f));
+    g.drawText (v.name, t.removeFromTop (t.getHeight() / 2 + 1), Justification::bottomLeft);
+    g.setColour (on ? Palette::accent.withAlpha (0.85f) : Palette::textDim);
+    g.setFont (uiFont (11.5f, false, 0.02f));
+    g.drawText (v.hint, t.translated (0, 2), Justification::topLeft);
+    // how much lower: a small depth bar + number
+    auto tag = r.toNearestInt().removeFromRight (60).reduced (10, 0);
+    const float depth = jlimit (0.0f, 1.0f, -v.pitch / 12.0f);
+    auto bar = Rectangle<float> ((float) tag.getX(), r.getCentreY() + 8.0f, (float) tag.getWidth(), 3.0f);
+    g.setColour (Colours::white.withAlpha (0.08f)); g.fillRoundedRectangle (bar, 1.5f);
+    if (depth > 0) { g.setColour (on ? Palette::glow : Palette::accent.withAlpha (0.8f)); g.fillRoundedRectangle (bar.withWidth (jmax (3.0f, bar.getWidth() * depth)), 1.5f); }
+    g.setColour (v.pitch < 0 ? (on ? Palette::glow : Palette::accent) : Palette::textDim);
+    g.setFont (uiFont (13.0f, true));
+    g.drawText (v.pitch < 0 ? String (roundToInt (v.pitch)) : String ("0"), tag.withBottom ((int) r.getCentreY() + 4), Justification::centredRight);
 }
 
 // ============================================================================
@@ -450,160 +386,62 @@ LiveVoiceEditor::LiveVoiceEditor (LiveVoiceProcessor& p) : AudioProcessorEditor 
     setLookAndFeel (&look);
     auto& st = proc.apvts;
 
-    auto setupKnob = [this] (Slider& s, bool big)
-    {
-        s.setSliderStyle (Slider::RotaryVerticalDrag);
-        s.setTextBoxStyle (Slider::NoTextBox, false, 0, 0);
-        s.setRotaryParameters (MathConstants<float>::pi * 1.25f, MathConstants<float>::pi * 2.75f, true);
-        s.setMouseDragSensitivity (big ? 420 : 300);
-        s.setVelocityBasedMode (false);
-        s.getProperties().set ("big", big);
-        addAndMakeVisible (s);
-    };
-
-    // header
     addAndMakeVisible (inMeter); addAndMakeVisible (outMeter);
-    setupKnob (outKnob, false);
-    aOut = std::make_unique<SA> (st, ParamID::output, outKnob);
-    outKnob.setDoubleClickReturnValue (true, 0.0);
+    addAndMakeVisible (powerBtn);
+    aPower = std::make_unique<BA> (st, ParamID::voiceOn, powerBtn);
     muteBtn.getProperties().set ("kind", "mute"); muteBtn.setClickingTogglesState (true);
     addAndMakeVisible (muteBtn);
     aMute = std::make_unique<BA> (st, ParamID::mute, muteBtn);
-    clipBtn.setClickingTogglesState (true);
-    addAndMakeVisible (clipBtn);
-    aClip = std::make_unique<BA> (st, ParamID::clipOn, clipBtn);
     audioBtn.onClick = [] { if (LiveVoiceEditor::onAudioSettings) LiveVoiceEditor::onAudioSettings(); };
     addAndMakeVisible (audioBtn);
 
-    // presets + undo
-    presetBox.getProperties().set ("kind", "preset");
-    presetBox.onClick = [this] { showPresetMenu(); };
-    for (auto* b : { &presetPrev, &presetNext }) b->getProperties().set ("kind", "arrow");
-    presetPrev.onClick = [this] { stepPreset (-1); };
-    presetNext.onClick = [this] { stepPreset (1); };
-    saveBtn.onClick = [this] { saveOverlay.setBounds (getLocalBounds()); saveOverlay.open(); };
-    undoBtn.onClick = [this] { proc.undo.undo(); };
-    for (auto* b : { &presetPrev, &presetBox, &presetNext, &saveBtn, &undoBtn }) addAndMakeVisible (b);
-    saveOverlay.onDone = [this] { grabKeyboardFocus(); };
-    addChildComponent (saveOverlay);
-    proc.addListener (this);
-
-    // voice
-    addAndMakeVisible (voiceLamp);
-    aVoice = std::make_unique<BA> (st, ParamID::voiceOn, voiceLamp);
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < kNumVoices; ++i)
     {
-        auto& b = modeBtn[i];
-        b.setButtonText (lv::kModes[i].name);
-        b.getProperties().set ("kind", "mode");
-        b.getProperties().set ("hint", lv::kModes[i].hint);
-        b.onClick = [this, i] { setParam (ParamID::mode, (float) i); refreshButtons(); };
-        addAndMakeVisible (b);
+        auto* t = tiles.add (new VoiceTile (i));
+        t->onClick = [this, i] { selectVoice (i); };
+        addAndMakeVisible (t);
     }
-    setupKnob (strengthKnob, true);
-    strengthKnob.getProperties().set ("ticks", 21);
-    aStrength = std::make_unique<SA> (st, ParamID::strength, strengthKnob);
-    strengthKnob.setDoubleClickReturnValue (true, 0.7);
 
-    // pitch
-    setupKnob (pitchKnob, true);
+    pitchKnob.setSliderStyle (Slider::RotaryVerticalDrag);
+    pitchKnob.setTextBoxStyle (Slider::NoTextBox, false, 0, 0);
+    pitchKnob.setRotaryParameters (MathConstants<float>::pi * 1.25f, MathConstants<float>::pi * 2.75f, true);
+    pitchKnob.setMouseDragSensitivity (420);
+    pitchKnob.getProperties().set ("big", true);
     pitchKnob.getProperties().set ("ticks", 25);
     pitchKnob.getProperties().set ("majors", true);
+    addAndMakeVisible (pitchKnob);
     aPitch = std::make_unique<SA> (st, ParamID::formant, pitchKnob);
-    pitchKnob.setDoubleClickReturnValue (true, 0.0);
-    const float qv[4] = { -12.0f, -5.0f, 0.0f, 5.0f };
-    const char* qt[4] = { "-12", "-5", "0", "+5" };
-    for (int i = 0; i < 4; ++i)
-    {
-        quick[i].setButtonText (qt[i]);
-        quick[i].getProperties().set ("kind", "quick");
-        const float v = qv[i];
-        quick[i].onClick = [this, v] { setParam (ParamID::formant, v); };
-        addAndMakeVisible (quick[i]);
-    }
 
-    // sfx
-    addAndMakeVisible (sfxLamp);
-    aSfx = std::make_unique<BA> (st, ParamID::sfxOn, sfxLamp);
-    addAndMakeVisible (sfxScreen);
-    sfxScreen.setInterceptsMouseClicks (false, false);
-    for (auto* b : { &prevBtn, &nextBtn })
+    for (int t = 0; t < 4; ++t)
     {
-        b->getProperties().set ("kind", "arrow");
+        auto* b = sfxBtns.add (new SfxButton (t));
+        b->onClick = [this, t]
+        {
+            const bool same = getParam (ParamID::sfxOn) > 0.5f && (int) getParam (ParamID::sfxType) == t;
+            if (! same) setParam (ParamID::sfxType, (float) t);
+            setParam (ParamID::sfxOn, same ? 0.0f : 1.0f);
+        };
         addAndMakeVisible (b);
     }
-    prevBtn.onClick = [this] { setParam (ParamID::sfxType, (float) (((int) getParam (ParamID::sfxType) + 3) % 4)); };
-    nextBtn.onClick = [this] { setParam (ParamID::sfxType, (float) (((int) getParam (ParamID::sfxType) + 1) % 4)); };
-    setupKnob (amountKnob, true);
-    amountKnob.getProperties().set ("ticks", 21);
-    aAmount = std::make_unique<SA> (st, ParamID::sfxAmount, amountKnob);
-    amountKnob.setDoubleClickReturnValue (true, 0.5);
+    amountBar.setSliderStyle (Slider::LinearBar);
+    amountBar.setTextBoxStyle (Slider::NoTextBox, false, 0, 0);
+    amountBar.setColour (Slider::trackColourId, Palette::accent);
+    amountBar.setColour (Slider::backgroundColourId, Palette::screen);
+    amountBar.setDoubleClickReturnValue (true, 0.5);
+    addAndMakeVisible (amountBar);
+    aAmount = std::make_unique<SA> (st, ParamID::sfxAmount, amountBar);
 
-    // keys (SPACE, M, arrows) always go to the editor, never to a focused button/knob
-    for (auto* c : getChildren())
-        if (c != &saveOverlay) { c->setWantsKeyboardFocus (false); c->setMouseClickGrabsKeyboardFocus (false); }
+    // keys always go to the editor
+    for (auto* c : getChildren()) { c->setWantsKeyboardFocus (false); c->setMouseClickGrabsKeyboardFocus (false); }
     setWantsKeyboardFocus (true);
-    setSize (1060, 586);
+    setSize (980, 560);
+    refresh();
+    startTimerHz (30);
     Component::SafePointer<LiveVoiceEditor> safe (this);
     MessageManager::callAsync ([safe] { if (safe != nullptr && safe->isShowing()) safe->grabKeyboardFocus(); });
-    refreshButtons();
-    startTimerHz (30);
 }
 
-LiveVoiceEditor::~LiveVoiceEditor()
-{
-    proc.removeListener (this);
-    setLookAndFeel (nullptr);
-}
-
-void LiveVoiceEditor::audioProcessorParameterChangeGestureBegin (AudioProcessor*, int)
-{
-    // every knob turn / click is one UNDO step (may come from the audio or message thread - UndoManager is used on the message thread only)
-    if (MessageManager::getInstance()->isThisTheMessageThread()) proc.undo.beginNewTransaction();
-}
-
-void LiveVoiceEditor::showPresetMenu()
-{
-    PopupMenu m;
-    auto files = proc.listPresets();
-    auto root = LiveVoiceProcessor::presetRoot();
-    std::map<String, PopupMenu> folders;
-    StringArray order;
-    for (int i = 0; i < files.size(); ++i)
-    {
-        const auto& f = files.getReference (i);
-        const bool ticked = f == proc.presetFile;
-        if (f.getParentDirectory() == root) m.addItem (i + 1, f.getFileNameWithoutExtension(), true, ticked);
-        else
-        {
-            const String fn = f.getParentDirectory().getFileName();
-            if (! order.contains (fn)) order.add (fn);
-            folders[fn].addItem (i + 1, f.getFileNameWithoutExtension(), true, ticked);
-        }
-    }
-    if (order.contains ("Factory")) { order.removeString ("Factory"); order.insert (0, "Factory"); }
-    for (auto& fn : order) m.addSubMenu (fn, folders[fn]);
-    m.addSeparator();
-    m.addItem (9001, "INIT (reset all)");
-    m.addItem (9002, "Open presets folder");
-    m.showMenuAsync (PopupMenu::Options().withTargetComponent (presetBox).withMinimumWidth (presetBox.getWidth()),
-                     [this, files] (int r)
-                     {
-                         if (r == 9001) proc.initSound();
-                         else if (r == 9002) { LiveVoiceProcessor::presetRoot().createDirectory(); LiveVoiceProcessor::presetRoot().startAsProcess(); }
-                         else if (r > 0 && r <= files.size()) proc.loadPreset (files[r - 1]);
-                         grabKeyboardFocus();
-                     });
-}
-
-void LiveVoiceEditor::stepPreset (int dir)
-{
-    auto files = proc.listPresets();
-    if (files.isEmpty()) return;
-    int i = files.indexOf (proc.presetFile);
-    i = i < 0 ? (dir > 0 ? 0 : files.size() - 1) : (i + dir + files.size()) % files.size();
-    proc.loadPreset (files[i]);
-}
+LiveVoiceEditor::~LiveVoiceEditor() { setLookAndFeel (nullptr); }
 
 float LiveVoiceEditor::getParam (const char* id) const
 {
@@ -619,51 +457,51 @@ void LiveVoiceEditor::setParam (const char* id, float v)
     p->endChangeGesture();
 }
 
-void LiveVoiceEditor::refreshButtons()
+void LiveVoiceEditor::selectVoice (int i)
 {
-    const int m = (int) getParam (ParamID::mode);
-    for (int i = 0; i < 4; ++i) modeBtn[i].setToggleState (i == m, dontSendNotification);
-    const float pv = getParam (ParamID::formant);
-    const float qv[4] = { -12.0f, -5.0f, 0.0f, 5.0f };
-    for (int i = 0; i < 4; ++i) quick[i].setToggleState (std::abs (pv - qv[i]) < 0.05f, dontSendNotification);
-    sfxScreen.type = (int) getParam (ParamID::sfxType);
-    sfxScreen.on = getParam (ParamID::sfxOn) > 0.5f;
-    const bool von = getParam (ParamID::voiceOn) > 0.5f;
-    for (auto& b : modeBtn) b.setAlpha (von ? 1.0f : 0.45f);
-    strengthKnob.setAlpha (von ? 1.0f : 0.45f);
-    amountKnob.setAlpha (sfxScreen.on ? 1.0f : 0.5f);
+    const auto& v = kVoices[i];
+    setParam (ParamID::voice, (float) i);
+    setParam (ParamID::voiceOn, 1.0f);
+    setParam (ParamID::mode, (float) v.mode);
+    setParam (ParamID::strength, v.strength);
+    setParam (ParamID::formant, v.pitch);
+    setParam (ParamID::clipOn, v.clip ? 1.0f : 0.0f);
+    if (v.sfx >= 0) { setParam (ParamID::sfxType, (float) v.sfx); setParam (ParamID::sfxAmount, v.sfxAmount); setParam (ParamID::sfxOn, 1.0f); }
+    else setParam (ParamID::sfxOn, 0.0f);
+    refresh();
+}
+
+void LiveVoiceEditor::refresh()
+{
+    const int v = jlimit (0, kNumVoices - 1, (int) getParam (ParamID::voice));
+    const bool on = getParam (ParamID::voiceOn) > 0.5f;
+    for (auto* t : tiles) { t->setToggleState (t->index == v, dontSendNotification); t->setAlpha (on ? 1.0f : 0.45f); }
+    pitchKnob.setDoubleClickReturnValue (true, kVoices[v].pitch);
+    const bool sOn = getParam (ParamID::sfxOn) > 0.5f; const int st = (int) getParam (ParamID::sfxType);
+    for (auto* b : sfxBtns) b->setToggleState (sOn && b->type == st, dontSendNotification);
+    amountBar.setAlpha (sOn ? 1.0f : 0.4f);
 }
 
 void LiveVoiceEditor::timerCallback()
 {
     inMeter.setLevel (proc.engine.inLevel.load());
     outMeter.setLevel (proc.engine.outLevel.load());
-    sfxScreen.activity = sfxScreen.activity * 0.7f + proc.engine.sfxActivity.load() * 0.3f;
-    refreshButtons();
-    if (presetBox.getButtonText() != proc.presetName) presetBox.setButtonText (proc.presetName);
-    undoBtn.setEnabled (proc.undo.canUndo());
-    undoBtn.setAlpha (proc.undo.canUndo() ? 1.0f : 0.45f);
-    sfxScreen.repaint();
+    const float act = proc.engine.sfxActivity.load();
+    for (auto* b : sfxBtns) { b->activity = b->activity * 0.7f + act * 0.3f; if (b->getToggleState()) b->repaint(); }
+    refresh();
     repaint (pitchPanel.withHeight (60));
-    repaint (voicePanel.withTop (voicePanel.getBottom() - 60));
-    repaint (sfxPanel.withTop (sfxPanel.getBottom() - 60));
+    repaint (sfxPanel.withHeight (50));
 }
 
 bool LiveVoiceEditor::keyPressed (const KeyPress& k)
 {
-    if (saveOverlay.isVisible()) return false;
-    if (k.getModifiers().isCommandDown() && (k.getKeyCode() == 'Z' || k.getKeyCode() == 'z'))
-    { if (k.getModifiers().isShiftDown()) proc.undo.redo(); else proc.undo.undo(); return true; }
-    if (k.getModifiers().isCommandDown() && (k.getKeyCode() == 'Y' || k.getKeyCode() == 'y')) { proc.undo.redo(); return true; }
-    if (k.getModifiers().isCommandDown() && (k.getKeyCode() == 'S' || k.getKeyCode() == 's')) { saveBtn.triggerClick(); return true; }
+    const auto ch = k.getTextCharacter();
     if (k == KeyPress::spaceKey) { setParam (ParamID::voiceOn, getParam (ParamID::voiceOn) > 0.5f ? 0.0f : 1.0f); return true; }
-    if (k.getTextCharacter() == 'm' || k.getTextCharacter() == 'M' || k.getTextCharacter() == L'ь' || k.getTextCharacter() == L'Ь')
-    { setParam (ParamID::mute, getParam (ParamID::mute) > 0.5f ? 0.0f : 1.0f); return true; }
-    if (k.getTextCharacter() == 'c' || k.getTextCharacter() == 'C' || k.getTextCharacter() == L'с' || k.getTextCharacter() == L'С')
-    { setParam (ParamID::clipOn, getParam (ParamID::clipOn) > 0.5f ? 0.0f : 1.0f); return true; }
+    if (ch == 'm' || ch == 'M' || ch == L'ь' || ch == L'Ь') { setParam (ParamID::mute, getParam (ParamID::mute) > 0.5f ? 0.0f : 1.0f); return true; }
     if (k == KeyPress::upKey)   { setParam (ParamID::formant, jmin (12.0f, std::round (getParam (ParamID::formant)) + 1.0f)); return true; }
     if (k == KeyPress::downKey) { setParam (ParamID::formant, jmax (-12.0f, std::round (getParam (ParamID::formant)) - 1.0f)); return true; }
-    if (k.getTextCharacter() == '0') { setParam (ParamID::formant, 0.0f); return true; }
+    if (ch >= '1' && ch <= '9') { selectVoice ((int) (ch - '1')); return true; }
+    if (ch == '0') { selectVoice (9); return true; }
     return false;
 }
 
@@ -673,115 +511,84 @@ void LiveVoiceEditor::paint (Graphics& g)
     g.setGradientFill (ColourGradient (Palette::bgTop, 0, 0, Palette::bgBottom, 0, full.getHeight(), false));
     g.fillAll();
 
-    // title + version plate (like GRAIN FORM)
+    // title + version plate
     g.setColour (Palette::text);
     g.setFont (uiFont (36.0f, false, 0.05f));
-    const String title = "LIVE VOICE";
-    g.drawText (title, Rectangle<int> (26, 10, 400, 44), Justification::centredLeft);
-    const int tw = GlyphArrangement::getStringWidthInt (uiFont (36.0f, false, 0.05f), title);
+    g.drawText ("LIVE VOICE", Rectangle<int> (26, 10, 400, 44), Justification::centredLeft);
+    const int tw = GlyphArrangement::getStringWidthInt (uiFont (36.0f, false, 0.05f), "LIVE VOICE");
     auto plate = Rectangle<float> ((float) (26 + tw + 12), 22.0f, 46.0f, 20.0f);
-    g.setColour (Palette::button);
-    g.fillRoundedRectangle (plate, 4.0f);
-    g.setColour (Palette::label);
-    g.setFont (uiFont (11.5f, true, 0.06f));
+    g.setColour (Palette::button); g.fillRoundedRectangle (plate, 4.0f);
+    g.setColour (Palette::label); g.setFont (uiFont (11.5f, true, 0.06f));
     g.drawText ("v" + String (LIVEVOICE_LABEL), plate.toNearestInt(), Justification::centred);
-    g.setColour (Palette::textDim);
-    g.setFont (uiFont (11.5f, true, 0.30f));
+    g.setColour (Palette::textDim); g.setFont (uiFont (11.5f, true, 0.30f));
     g.drawText ("LIVE VOCAL PROCESSOR", Rectangle<int> (28, 52, 260, 16), Justification::centredLeft);
 
-    // header labels
-    caption (g, "IN", inMeter.getBounds().withX (inMeter.getX() - 30).withWidth (26).expanded (0, 4), Justification::centredRight, Palette::textDim, 10.0f);
-    caption (g, "OUT", outMeter.getBounds().withX (outMeter.getX() - 30).withWidth (26).expanded (0, 4), Justification::centredRight, Palette::textDim, 10.0f);
-    caption (g, "LEVEL", Rectangle<int> (outKnob.getX() - 12, outKnob.getBottom() - 2, outKnob.getWidth() + 24, 14), Justification::centred, Palette::textDim, 10.0f);
+    caption (g, "IN", inMeter.getBounds().withX (inMeter.getX() - 30).withWidth (24).expanded (0, 4), Justification::centredRight, Palette::textDim, 10.0f);
+    caption (g, "OUT", outMeter.getBounds().withX (outMeter.getX() - 34).withWidth (28).expanded (0, 4), Justification::centredRight, Palette::textDim, 10.0f);
+    const bool on = getParam (ParamID::voiceOn) > 0.5f;
+    caption (g, on ? "ON" : "OFF", Rectangle<int> (powerBtn.getX() - 8, powerBtn.getBottom() - 1, powerBtn.getWidth() + 16, 14), Justification::centred,
+             on ? Palette::accent : Palette::textDim, 10.0f);
 
     for (auto r : { voicePanel, pitchPanel, sfxPanel }) panelBox (g, r.toFloat());
 
-    // ---- VOICE ----
-    caption (g, "VOICE", Rectangle<int> (voicePanel.getX() + 22, voicePanel.getY() + 16, 120, 24), Justification::centredLeft, Palette::text, 14.0f);
-    caption (g, "STRENGTH", Rectangle<int> (voicePanel.getX(), strengthKnob.getBottom() + 4, voicePanel.getWidth(), 18), Justification::centred, Palette::label, 12.0f);
-    g.setColour (Palette::accent); g.setFont (uiFont (13.0f, true));
-    g.drawText (String (roundToInt (getParam (ParamID::strength) * 100)) + " %", Rectangle<int> (voicePanel.getX(), strengthKnob.getBottom() + 22, voicePanel.getWidth(), 18), Justification::centred);
+    // VOICE PRESETS
+    caption (g, "VOICE PRESETS", Rectangle<int> (voicePanel.getX() + 22, voicePanel.getY() + 14, 200, 24), Justification::centredLeft, Palette::text, 14.0f);
+    g.setColour (Palette::textDim); g.setFont (uiFont (11.0f));
+    g.drawText ("number = how much lower", Rectangle<int> (voicePanel.getRight() - 222, voicePanel.getY() + 14, 200, 24), Justification::centredRight);
 
-    // ---- PITCH ----
-    caption (g, "PITCH", Rectangle<int> (pitchPanel.getX() + 22, pitchPanel.getY() + 16, 120, 24), Justification::centredLeft, Palette::text, 14.0f);
+    // PITCH
+    caption (g, "PITCH", Rectangle<int> (pitchPanel.getX() + 22, pitchPanel.getY() + 14, 120, 24), Justification::centredLeft, Palette::text, 14.0f);
     const float pv = getParam (ParamID::formant);
     g.setColour (std::abs (pv) < 0.05f ? Palette::text : Palette::glow);
-    g.setFont (uiFont (24.0f, true, 0.02f));
-    g.drawText (semis (pv), Rectangle<int> (pitchPanel.getRight() - 182, pitchPanel.getY() + 12, 160, 32), Justification::centredRight);
+    g.setFont (uiFont (22.0f, true, 0.02f));
+    g.drawText (semis (pv), Rectangle<int> (pitchPanel.getRight() - 162, pitchPanel.getY() + 10, 140, 30), Justification::centredRight);
     {
-        // scale labels around the big knob
         const auto c = pitchKnob.getBounds().toFloat().getCentre();
-        const float rr = pitchKnob.getWidth() * 0.5f + 14.0f;
-        g.setFont (uiFont (11.5f, true));
-        g.setColour (Palette::textDim);
+        const float rr = pitchKnob.getWidth() * 0.5f + 13.0f;
+        g.setFont (uiFont (11.0f, true)); g.setColour (Palette::textDim);
         const float a0 = MathConstants<float>::pi * 1.25f, a1 = MathConstants<float>::pi * 2.75f;
         const char* lbl[5] = { "-12", "-6", "0", "+6", "+12" };
         for (int i = 0; i < 5; ++i)
-        {
-            const auto pt = c.getPointOnCircumference (rr, a0 + (a1 - a0) * (float) i / 4.0f);
-            g.drawText (lbl[i], Rectangle<float> (36, 16).withCentre (pt).toNearestInt(), Justification::centred);
-        }
-        caption (g, "LOWER", Rectangle<int> ((int) (c.x - rr - 40), (int) (c.y + rr * 0.80f), 80, 16), Justification::centred, Palette::textDim, 10.5f);
-        caption (g, "HIGHER", Rectangle<int> ((int) (c.x + rr - 40), (int) (c.y + rr * 0.80f), 80, 16), Justification::centred, Palette::textDim, 10.5f);
+            g.drawText (lbl[i], Rectangle<float> (36, 16).withCentre (c.getPointOnCircumference (rr, a0 + (a1 - a0) * (float) i / 4.0f)).toNearestInt(), Justification::centred);
+        caption (g, "LOWER", Rectangle<int> ((int) (c.x - rr - 36), (int) (c.y + rr * 0.78f), 72, 16), Justification::centred, Palette::textDim, 10.0f);
+        caption (g, "HIGHER", Rectangle<int> ((int) (c.x + rr - 36), (int) (c.y + rr * 0.78f), 72, 16), Justification::centred, Palette::textDim, 10.0f);
     }
-    // hint under the quick buttons
-    g.setColour (Palette::textDim); g.setFont (uiFont (11.5f));
-    g.drawText ("double-click = normal voice      UP / DOWN = one step",
-                Rectangle<int> (pitchPanel.getX(), quick[0].getBottom() + 26, pitchPanel.getWidth(), 18), Justification::centred);
+    g.setColour (Palette::textDim); g.setFont (uiFont (11.0f));
+    g.drawText ("double-click = back to the preset", Rectangle<int> (pitchPanel.getX(), pitchPanel.getBottom() - 30, pitchPanel.getWidth(), 18), Justification::centred);
 
-    // ---- SFX ----
-    caption (g, "SFX", Rectangle<int> (sfxPanel.getX(), sfxPanel.getY() + 16, sfxPanel.getWidth(), 24), Justification::centred,
-             getParam (ParamID::sfxOn) > 0.5f ? Palette::glow : Palette::text, 14.0f);
-    caption (g, "AMOUNT", Rectangle<int> (sfxPanel.getX(), amountKnob.getBottom() + 4, sfxPanel.getWidth(), 18), Justification::centred, Palette::label, 12.0f);
-    g.setColour (Palette::accent); g.setFont (uiFont (13.0f, true));
-    g.drawText (String (roundToInt (getParam (ParamID::sfxAmount) * 100)) + " %", Rectangle<int> (sfxPanel.getX(), amountKnob.getBottom() + 22, sfxPanel.getWidth(), 18), Justification::centred);
+    // EFFECT
+    const bool sOn = getParam (ParamID::sfxOn) > 0.5f;
+    caption (g, "EFFECT", Rectangle<int> (sfxPanel.getX() + 22, sfxPanel.getY() + 12, 120, 22), Justification::centredLeft, Palette::text, 14.0f);
+    g.setColour (sOn ? Palette::accent : Palette::textDim); g.setFont (uiFont (12.0f, true));
+    g.drawText (sOn ? String (roundToInt (getParam (ParamID::sfxAmount) * 100)) + " %" : String ("OFF"),
+                Rectangle<int> (sfxPanel.getRight() - 122, sfxPanel.getY() + 12, 100, 22), Justification::centredRight);
 
-    // footer: shortcuts
-    g.setColour (Palette::textDim.withAlpha (0.8f));
-    g.setFont (uiFont (11.0f));
-    g.drawText ("SPACE  voice on/off      M  mute      C  clip      UP / DOWN  pitch      0  normal voice      CTRL+Z  undo      CTRL+S  save preset",
+    g.setColour (Palette::textDim.withAlpha (0.8f)); g.setFont (uiFont (11.0f));
+    g.drawText ("1 - 0  presets      SPACE  on/off      M  mute      UP / DOWN  pitch",
                 Rectangle<int> (0, getHeight() - 26, getWidth(), 18), Justification::centred);
 }
 
 void LiveVoiceEditor::resized()
 {
-    // header: title | preset bar | meters, level, audio, mute
     muteBtn.setBounds (getWidth() - 24 - 80, 20, 80, 34);
-    audioBtn.setBounds (muteBtn.getX() - 8 - 70, 20, 70, 34);
-    outKnob.setBounds (audioBtn.getX() - 16 - 40, 12, 40, 40);
-    clipBtn.setBounds (outKnob.getX() - 14 - 56, 20, 56, 34);
-    outMeter.setBounds (clipBtn.getX() - 12 - 80, 41, 80, 9);
-    inMeter.setBounds (outMeter.getX(), 24, 80, 9);
-
-    const int px = 272, py = 20, ph = 34;
-    presetPrev.setBounds (px, py, 26, ph);
-    presetBox.setBounds (presetPrev.getRight() + 4, py, 150, ph);
-    presetNext.setBounds (presetBox.getRight() + 4, py, 26, ph);
-    saveBtn.setBounds (presetNext.getRight() + 8, py, 58, ph);
-    undoBtn.setBounds (saveBtn.getRight() + 6, py, 58, ph);
+    audioBtn.setBounds (muteBtn.getX() - 8 - 74, 20, 74, 34);
+    powerBtn.setBounds (audioBtn.getX() - 18 - 34, 14, 34, 34);
+    outMeter.setBounds (powerBtn.getX() - 22 - 110, 41, 110, 9);
+    inMeter.setBounds (outMeter.getX(), 24, 110, 9);
 
     const int top = 84, h = getHeight() - top - 34;
-    voicePanel = { 24, top, 280, h };
-    pitchPanel = { voicePanel.getRight() + 16, top, 404, h };
-    sfxPanel   = { pitchPanel.getRight() + 16, top, getWidth() - 24 - (pitchPanel.getRight() + 16), h };
+    voicePanel = { 24, top, 560, h };
+    const int rx = voicePanel.getRight() + 16, rw = getWidth() - 24 - rx;
+    pitchPanel = { rx, top, rw, 262 };
+    sfxPanel   = { rx, pitchPanel.getBottom() + 14, rw, h - 262 - 14 };
 
-    // voice
-    voiceLamp.setBounds (voicePanel.getRight() - 46, voicePanel.getY() + 12, 30, 30);
-    for (int i = 0; i < 4; ++i)
-        modeBtn[i].setBounds (voicePanel.getX() + 18, voicePanel.getY() + 56 + i * 60, voicePanel.getWidth() - 36, 52);
-    strengthKnob.setBounds (Rectangle<int> (104, 104).withCentre ({ voicePanel.getCentreX(), voicePanel.getY() + 368 }));
+    const int tw = (voicePanel.getWidth() - 36 - 12) / 2, th = 68, tg = 10;
+    for (int i = 0; i < tiles.size(); ++i)
+        tiles[i]->setBounds (voicePanel.getX() + 18 + (i % 2) * (tw + 12), voicePanel.getY() + 50 + (i / 2) * (th + tg), tw, th);
 
-    // pitch
-    pitchKnob.setBounds (Rectangle<int> (236, 236).withCentre ({ pitchPanel.getCentreX(), pitchPanel.getY() + 196 }));
-    const int qw = 62, qg = 10, qx = pitchPanel.getCentreX() - (4 * qw + 3 * qg) / 2;
-    for (int i = 0; i < 4; ++i) quick[i].setBounds (qx + i * (qw + qg), pitchPanel.getY() + 368, qw, 30);
+    pitchKnob.setBounds (Rectangle<int> (168, 168).withCentre ({ pitchPanel.getCentreX(), pitchPanel.getY() + 136 }));
 
-    // sfx
-    sfxLamp.setBounds (sfxPanel.getX() + 14, sfxPanel.getY() + 12, 30, 30);
-    sfxScreen.setBounds (sfxPanel.getX() + 16, sfxPanel.getY() + 52, sfxPanel.getWidth() - 32, 172);
-    prevBtn.setBounds (sfxScreen.getX() + 4, sfxScreen.getY() + 42, 30, 40);
-    nextBtn.setBounds (sfxScreen.getRight() - 34, sfxScreen.getY() + 42, 30, 40);
-    amountKnob.setBounds (Rectangle<int> (128, 128).withCentre ({ sfxPanel.getCentreX(), sfxPanel.getY() + 318 }));
-
-    saveOverlay.setBounds (getLocalBounds());
+    const int bw = (sfxPanel.getWidth() - 36 - 3 * 10) / 4;
+    for (int i = 0; i < 4; ++i) sfxBtns[i]->setBounds (sfxPanel.getX() + 18 + i * (bw + 10), sfxPanel.getY() + 42, bw, bw + 4);
+    amountBar.setBounds (sfxPanel.getX() + 18, sfxBtns[0]->getBottom() + 12, sfxPanel.getWidth() - 36, 10);
 }

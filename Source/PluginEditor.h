@@ -34,6 +34,7 @@ public:
     void drawButtonBackground (juce::Graphics&, juce::Button&, const juce::Colour&, bool over, bool down) override;
     void drawButtonText (juce::Graphics&, juce::TextButton&, bool over, bool down) override;
     juce::Font getComboBoxFont (juce::ComboBox&) override;
+    void drawLinearSlider (juce::Graphics&, int, int, int, int, float, float, float, juce::Slider::SliderStyle, juce::Slider&) override;
     juce::Font getPopupMenuFont() override;
 };
 
@@ -54,33 +55,25 @@ private:
     float level = 0;
 };
 
-// the copper icon on the SFX screen
-class SfxScreen final : public juce::Component
+// one big VOICE PRESET tile
+class VoiceTile final : public juce::Button
 {
 public:
-    int type = 0; bool on = false; float activity = 0, phase = 0;
-    void paint (juce::Graphics&) override;
+    explicit VoiceTile (int i) : juce::Button (kVoices[i].name), index (i) {}
+    void paintButton (juce::Graphics&, bool over, bool down) override;
+    const int index;
 };
 
-// SAVE window (drawn over the editor, no OS dialogs): name, folder (+ new folder), SAVE / REPLACE
-class SaveOverlay final : public juce::Component
+// square SFX button with its copper icon
+class SfxButton final : public juce::Button
 {
 public:
-    SaveOverlay (LiveVoiceProcessor&);
-    void paint (juce::Graphics&) override;
-    void resized() override;
-    void open();
-    std::function<void()> onDone;
-private:
-    void updateSaveText();
-    LiveVoiceProcessor& proc;
-    juce::TextEditor name, newFolder;
-    juce::ComboBox folder;
-    juce::TextButton cancel { "CANCEL" }, save { "SAVE" };
-    juce::Rectangle<int> box;
+    explicit SfxButton (int t) : juce::Button (lv::kSfx[t].name), type (t) {}
+    void paintButton (juce::Graphics&, bool over, bool down) override;
+    const int type; float activity = 0;
 };
 
-class LiveVoiceEditor final : public juce::AudioProcessorEditor, private juce::Timer, private juce::AudioProcessorListener
+class LiveVoiceEditor final : public juce::AudioProcessorEditor, private juce::Timer
 {
 public:
     explicit LiveVoiceEditor (LiveVoiceProcessor&);
@@ -89,19 +82,14 @@ public:
     void resized() override;
     bool keyPressed (const juce::KeyPress&) override;
     void tick() { timerCallback(); }   // used by the Snapshot tool
-    void openSaveForSnapshot() { saveOverlay.setBounds (getLocalBounds()); saveOverlay.open(); }
     static inline std::function<void()> onAudioSettings;   // set by the standalone app (opens the audio device window)
 
 private:
     void timerCallback() override;
-    void audioProcessorParameterChanged (juce::AudioProcessor*, int, float) override {}
-    void audioProcessorChanged (juce::AudioProcessor*, const ChangeDetails&) override {}
-    void audioProcessorParameterChangeGestureBegin (juce::AudioProcessor*, int) override;
-    void showPresetMenu();
-    void stepPreset (int dir);
     void setParam (const char* id, float value);
     float getParam (const char* id) const;
-    void refreshButtons();
+    void selectVoice (int i);
+    void refresh();
 
     LiveVoiceProcessor& proc;
     LiveVoiceLook look;
@@ -109,29 +97,17 @@ private:
     using SA = juce::AudioProcessorValueTreeState::SliderAttachment;
     using BA = juce::AudioProcessorValueTreeState::ButtonAttachment;
 
-    // header
     LevelMeter inMeter, outMeter;
-    juce::Slider outKnob;
-    juce::TextButton muteBtn { "MUTE" }, audioBtn { "AUDIO" }, clipBtn { "CLIP" };
-    juce::TextButton presetPrev { "<" }, presetNext { ">" }, presetBox, saveBtn { "SAVE" }, undoBtn { "UNDO" };
-    SaveOverlay saveOverlay { proc };
-    // voice
-    Lamp voiceLamp;
-    juce::TextButton modeBtn[4];
-    juce::Slider strengthKnob;
-    // pitch
-    juce::Slider pitchKnob;   // PITCH = voice size (parameter "formant")
-    juce::TextButton quick[4];
-    // sfx
-    Lamp sfxLamp;
-    SfxScreen sfxScreen;
-    juce::TextButton prevBtn { "<" }, nextBtn { ">" };
-    juce::Slider amountKnob;
+    Lamp powerBtn;
+    juce::TextButton muteBtn { "MUTE" }, audioBtn { "AUDIO" };
+    juce::OwnedArray<VoiceTile> tiles;
+    juce::Slider pitchKnob;              // PITCH = voice size (parameter "formant")
+    juce::OwnedArray<SfxButton> sfxBtns;
+    juce::Slider amountBar;
 
-    std::unique_ptr<SA> aOut, aStrength, aPitch, aAmount;
-    std::unique_ptr<BA> aMute, aVoice, aSfx, aClip;
+    std::unique_ptr<SA> aPitch, aAmount;
+    std::unique_ptr<BA> aMute, aPower;
 
-    juce::Rectangle<int> voicePanel, pitchPanel, sfxPanel, header;
-    int lastMode = -1, lastSfx = -1;
+    juce::Rectangle<int> voicePanel, pitchPanel, sfxPanel;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LiveVoiceEditor)
 };

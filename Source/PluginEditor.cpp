@@ -493,7 +493,7 @@ LiveVoiceEditor::LiveVoiceEditor (LiveVoiceProcessor& p) : AudioProcessorEditor 
 
 LiveVoiceEditor::~LiveVoiceEditor() { setLookAndFeel (nullptr); }
 
-bool LiveVoiceEditor::showControls() const { return (bool) proc.apvts.state.getProperty ("showControls", true); }
+bool LiveVoiceEditor::showControls() const { return (bool) proc.apvts.state.getProperty ("showControls", false); }   // false = first start shows presets only
 void LiveVoiceEditor::setShowControls (bool b)
 {
     proc.apvts.state.setProperty ("showControls", b, nullptr);

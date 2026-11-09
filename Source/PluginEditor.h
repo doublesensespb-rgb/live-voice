@@ -99,14 +99,14 @@ private:
 
     LevelMeter inMeter, outMeter;
     Lamp powerBtn;
-    juce::TextButton muteBtn { "MUTE" }, audioBtn { "AUDIO" };
+    juce::TextButton muteBtn { "MUTE" }, audioBtn { "AUDIO" }, clipBtn { "CLIP" };
     juce::OwnedArray<VoiceTile> tiles;
     juce::Slider pitchKnob;              // PITCH = voice size (parameter "formant")
     juce::OwnedArray<SfxButton> sfxBtns;
     juce::Slider amountBar;
 
     std::unique_ptr<SA> aPitch, aAmount;
-    std::unique_ptr<BA> aMute, aPower;
+    std::unique_ptr<BA> aMute, aPower, aClip;
 
     juce::Rectangle<int> voicePanel, pitchPanel, sfxPanel;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LiveVoiceEditor)

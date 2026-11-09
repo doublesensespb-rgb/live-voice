@@ -11,10 +11,12 @@ microphone live for a DJ / event host. It is a client commission of Andrey Ulyan
 Signal flow (all in `Source/VoiceDSP.h`, header-only, no JUCE, tested by `test/dsp_test.cpp`):
 
 ```
-mic (L/R, picks the channel that carries signal) -> HPF -> soft GATE -> AUTO LEVEL (slow, only while talking, -6..+18 dB)
-  -> PITCH (Signalsmith Stretch, 30 ms block, formants kept)  ─┐  crossfade to the DIRECT path (0 ms) when pitch = formant = 0
+mic (L/R, picks the channel that carries signal) -> HPF -> GATE (threshold = room noise (rolling min over 1.6 s) +13 dB, 1:5,
+  120 ms hold) -> AUTO LEVEL (slow, only while talking, -6..+12 dB)
+  -> PITCH (Signalsmith Stretch, 30 ms block; above 4.5 kHz the ORIGINAL voice, LR4, latency-aligned) ─┐  crossfade to the DIRECT path (0 ms) when pitch = formant = 0
   -> BRUTAL layer (parallel shifter at pitch-12, same latency) ┘  and BRUTAL is off (300 ms hold, 25 ms fade)
   -> VOICE CHAIN: mud cut -> compressor -> body/presence/air -> de-esser -> warmth   (mode x STRENGTH)
+  -> NOISE DUCK: the gate gain again (delayed by the path latency), so pauses end quieter than the input
   -> SFX: WIDE (4-tap modulated doubler) | SHIMMER (+12 st shifter into an 8-line FDN) | ECHO THROW (ducked ping-pong) | BRUTAL
   -> CLIP (button, param `clipOn`: +8 dB into tanh with ADAA, -8+2 dB back, level-matched, 0 latency)
   -> OUTPUT gain -> MUTE (smoothed) -> limiter (-1 dBFS) + soft clip above 0.8
@@ -42,8 +44,8 @@ Audio is processed in 32-sample chunks. Modes: NATURAL, RADIO, CLUB, DEEP (`kMod
 | File | What |
 |---|---|
 | `Source/VoiceDSP.h` | All DSP (Biquad, DelayLine, PitchShifter wrapper, FDN reverb, `VoiceEngine`), meters as atomics |
-| `Source/PluginProcessor.*` | APVTS parameters, UndoManager, presets (`.lvpreset` XML in Documents/LIVE VOICE/Presets, folders, factory set written once into `Factory/`) |
-| `Source/PluginEditor.*` | UI 1060x586: `LiveVoiceLook`, `Lamp`, `LevelMeter`, `SfxScreen` (icons), `SaveOverlay`, `LiveVoiceEditor` (preset bar, undo, shortcuts) |
+| `Source/PluginProcessor.*` | APVTS parameters, `kVoices` (the 10 preset tiles: mode, strength, pitch, clip, sfx), UndoManager + file-preset code (not used by the 0.12 UI, kept; factory files are no longer written) |
+| `Source/PluginEditor.*` | UI 980x560 (0.12 simple): `LiveVoiceLook`, `Lamp`, `LevelMeter`, `VoiceTile` (10 presets from `kVoices` in PluginProcessor.h), `SfxButton` + `drawSfxIcon`, `LiveVoiceEditor` (CLIP/ON/AUDIO/MUTE, PITCH knob, effect buttons + amount bar, keys) |
 | `Source/StandaloneApp.cpp` | Custom standalone app: mic never muted, audio window on first run, prefers "Windows Audio (Low Latency Mode)", settings in AppData/Roaming/LIVE VOICE |
 | `tools/Snapshot.cpp` | Renders UI PNGs (CI + local previews) |
 | `test/dsp_test.cpp` | DSP tests: NaN, clipping, latency (direct ~0, pitch ~30 ms), noise floor, pitch accuracy, live knob sweep clicks, CPU |
@@ -69,7 +71,11 @@ v0.11: the big PITCH knob now drives the parameter `formant` (voice size: the ow
 the note shift (param `pitch`) is legacy: kept for old states, forced to 0 in processBlock, not in the UI (on speech it barely
 changed anything and sounded hissy with the 30 ms block). FORMANT row removed. Factory presets are rewritten when their
 `version` differs from the app's label.
-v0.12: CLIP button in the header (key C), saved in presets; factory: Radio Night, Club MC, Brutal Announcer have CLIP on.
+v0.12: client asked for a super simple UI: 10 "commercial" VOICE PRESET tiles (param `voice`; a tile writes mode, strength,
+formant, clipOn, sfx*), PITCH knob, 4 effect buttons + amount bar, CLIP button (param `clipOn`, ADAA tanh, level matched).
+Removed from UI: modes, STRENGTH, SAVE/UNDO/preset bar. Noise fix (owner: presets made the hiss louder): adaptive gate +
+post-compressor duck, AGC max +12, less air; test 7 checks pauses are quieter than the input. Highs kept when pitching
+(test 8: 8 kHz level at PITCH -6/-12).
 
 ## 6. How it was made
 Built by the owner talking to Claude (Anthropic) in a claude.ai session; the owner described, Claude wrote the code,

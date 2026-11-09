@@ -394,6 +394,9 @@ LiveVoiceEditor::LiveVoiceEditor (LiveVoiceProcessor& p) : AudioProcessorEditor 
     aMute = std::make_unique<BA> (st, ParamID::mute, muteBtn);
     audioBtn.onClick = [] { if (LiveVoiceEditor::onAudioSettings) LiveVoiceEditor::onAudioSettings(); };
     addAndMakeVisible (audioBtn);
+    clipBtn.setClickingTogglesState (true);
+    addAndMakeVisible (clipBtn);
+    aClip = std::make_unique<BA> (st, ParamID::clipOn, clipBtn);
 
     for (int i = 0; i < kNumVoices; ++i)
     {
@@ -500,6 +503,7 @@ bool LiveVoiceEditor::keyPressed (const KeyPress& k)
     if (ch == 'm' || ch == 'M' || ch == L'ь' || ch == L'Ь') { setParam (ParamID::mute, getParam (ParamID::mute) > 0.5f ? 0.0f : 1.0f); return true; }
     if (k == KeyPress::upKey)   { setParam (ParamID::formant, jmin (12.0f, std::round (getParam (ParamID::formant)) + 1.0f)); return true; }
     if (k == KeyPress::downKey) { setParam (ParamID::formant, jmax (-12.0f, std::round (getParam (ParamID::formant)) - 1.0f)); return true; }
+    if (ch == 'c' || ch == 'C' || ch == L'с' || ch == L'С') { setParam (ParamID::clipOn, getParam (ParamID::clipOn) > 0.5f ? 0.0f : 1.0f); return true; }
     if (ch >= '1' && ch <= '9') { selectVoice ((int) (ch - '1')); return true; }
     if (ch == '0') { selectVoice (9); return true; }
     return false;
@@ -564,7 +568,7 @@ void LiveVoiceEditor::paint (Graphics& g)
                 Rectangle<int> (sfxPanel.getRight() - 122, sfxPanel.getY() + 12, 100, 22), Justification::centredRight);
 
     g.setColour (Palette::textDim.withAlpha (0.8f)); g.setFont (uiFont (11.0f));
-    g.drawText ("1 - 0  presets      SPACE  on/off      M  mute      UP / DOWN  pitch",
+    g.drawText ("1 - 0  presets      SPACE  on/off      C  clip      M  mute      UP / DOWN  pitch",
                 Rectangle<int> (0, getHeight() - 26, getWidth(), 18), Justification::centred);
 }
 
@@ -573,7 +577,8 @@ void LiveVoiceEditor::resized()
     muteBtn.setBounds (getWidth() - 24 - 80, 20, 80, 34);
     audioBtn.setBounds (muteBtn.getX() - 8 - 74, 20, 74, 34);
     powerBtn.setBounds (audioBtn.getX() - 18 - 34, 14, 34, 34);
-    outMeter.setBounds (powerBtn.getX() - 22 - 110, 41, 110, 9);
+    clipBtn.setBounds (powerBtn.getX() - 18 - 62, 20, 62, 34);
+    outMeter.setBounds (clipBtn.getX() - 20 - 110, 41, 110, 9);
     inMeter.setBounds (outMeter.getX(), 24, 110, 9);
 
     const int top = 84, h = getHeight() - top - 34;

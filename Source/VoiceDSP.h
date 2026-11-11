@@ -132,14 +132,19 @@ struct ModeSpec
 {
     const char* name; const char* hint;
     float hpf, mudDb, mudHz, thrDb, ratio, bodyDb, bodyHz, presDb, presHz, airDb, deess, warmth;
+    float attackMs, makeupK, agcMaxDb;   // 0.16: per mode (the 0.13 modes keep their exact sound)
 };
-inline const ModeSpec kModes[4] =
+inline constexpr int kNumModes = 6;
+inline const ModeSpec kModes[kNumModes] =
 {
-    // 0.15: softer and cleaner (owner: "overload / hum" on some presets): gentler ratios, almost no saturation
-    { "NATURAL", "clean & even",        90.0f, -1.5f, 320.0f, -20.0f, 2.0f, 0.0f, 140.0f, 1.5f, 4200.0f, 0.8f, 0.50f, 0.00f },
-    { "RADIO",   "dense FM host",       85.0f, -3.0f, 340.0f, -26.0f, 3.0f, 2.0f, 130.0f, 2.5f, 3600.0f, 1.2f, 0.70f, 0.08f },
-    { "CLUB",    "cuts through music", 130.0f, -3.5f, 300.0f, -27.0f, 3.5f, 0.0f, 150.0f, 3.5f, 3000.0f, 1.5f, 0.80f, 0.06f },
-    { "DEEP",    "warm & low",          85.0f, -3.5f, 380.0f, -24.0f, 2.5f, 1.5f, 120.0f, 2.0f, 4000.0f, -0.3f, 0.60f, 0.06f },
+    // 0-3: EXACTLY the 0.13 sound (client: CLEAN / RADIO / CLUB MC / HYPE MC are good - do not touch)
+    { "NATURAL",   "clean & even",        90.0f, -2.0f, 320.0f, -22.0f, 2.5f, 1.0f, 140.0f, 2.5f, 4200.0f, 1.0f, 0.55f, 0.10f, 3.0f, 0.5f, 12.0f },
+    { "RADIO",     "dense FM host",       80.0f, -3.5f, 340.0f, -30.0f, 5.0f, 3.5f, 130.0f, 3.5f, 3600.0f, 1.5f, 0.80f, 0.35f, 3.0f, 0.5f, 12.0f },
+    { "CLUB",      "cuts through music", 140.0f, -4.0f, 300.0f, -32.0f, 6.0f, 0.0f, 150.0f, 5.0f, 3000.0f, 2.0f, 0.90f, 0.30f, 3.0f, 0.5f, 12.0f },
+    { "DEEP",      "warm & low",          60.0f, -2.5f, 420.0f, -26.0f, 3.5f, 4.5f, 110.0f, 1.5f, 4000.0f, -1.0f, 0.60f, 0.25f, 3.0f, 0.5f, 12.0f },
+    // 4-5 (0.16): soft, clean modes for the LOWERED presets (client: organic, no overload / hum)
+    { "HOST LOW",  "soft radio host",     85.0f, -3.0f, 340.0f, -26.0f, 3.0f, 2.0f, 130.0f, 2.5f, 3600.0f, 1.2f, 0.70f, 0.08f, 8.0f, 0.4f, 8.0f },
+    { "DEEP SOFT", "soft & warm",         85.0f, -3.5f, 380.0f, -24.0f, 2.5f, 1.5f, 120.0f, 2.0f, 4000.0f, -0.3f, 0.60f, 0.06f, 8.0f, 0.4f, 8.0f },
 };
 
 struct SfxSpec { const char* name; const char* hint; };
@@ -327,14 +332,14 @@ private:
 
     void updateFilters()
     {
-        const auto& m = kModes[std::clamp (cur.mode, 0, 3)];
+        const auto& m = kModes[std::clamp (cur.mode, 0, kNumModes - 1)];
         const float s = cur.strength;
         const float hf = m.hpf + 5.0f * std::clamp (-cur.formant, 0.0f, 6.0f);   // lowered voice -> cut the boom a bit higher
         hpf1.hp (fs, hf, 0.54f); hpf2.hp (fs, hf, 1.31f);           // 4th order Butterworth
         lastHpfFormant = cur.formant;
         mud.peak (fs, m.mudHz, 1.0f, m.mudDb * s - 0.5f * std::clamp (-cur.formant, 0.0f, 6.0f));   // lowered voice: clean the low-mids more
         body.lowShelf (fs, m.bodyHz, m.bodyDb * s);
-        pres.peak (fs, m.presHz, 0.8f, m.presDb * s);
+        pres.peak (fs, m.presHz, 0.8f, m.presDb * s + 0.4f * std::clamp (-cur.formant, 0.0f, 6.0f));   // lowered: give the presence back
         air.highShelf (fs, 10000.0f, m.airDb * s);
         deessDet.bp (fs, 6500.0f, 1.2f);
         deessSplit.hp (fs, 4500.0f);
@@ -350,9 +355,10 @@ private:
     void processChunk (const float* inL, const float* inR, float* outL, float* outR, int n)
     {
         if (cur.mode != lastMode || std::abs (cur.strength - lastStrength) > 0.001f || std::abs (cur.formant - lastHpfFormant) > 0.25f) updateFilters();
-        const auto& m = kModes[std::clamp (cur.mode, 0, 3)];
+        const auto& m = kModes[std::clamp (cur.mode, 0, kNumModes - 1)];
         const float s = cur.strength;
 
+        const float agcMax = kModes[std::clamp (cur.mode, 0, kNumModes - 1)].agcMaxDb;
         const float cNoiseA = coefMs (5.0f, fs), cNoiseR = coefMs (60.0f, fs);
         const int segLen = (int) (fs * 0.2);
         const float cGateA = coefMs (1.0f, fs), cGateR = coefMs (40.0f, fs), cGgA = coefMs (2.0f, fs), cGgR = coefMs (70.0f, fs);
@@ -397,7 +403,7 @@ private:
             {
                 agcEnv += (x * x - agcEnv) * 0.0005f;
                 const float rmsDb = 10.0f * std::log10 (agcEnv + 1e-12f) + agcDb;
-                const float want = std::clamp (-20.0f - (rmsDb - agcDb), -6.0f, 8.0f);
+                const float want = std::clamp (-20.0f - (rmsDb - agcDb), -6.0f, agcMax);
                 agcDb += (want - agcDb) * (float) (3.0 / fs / 6.0);
             }
             x *= dbToGain (agcDb * voiceMix);
@@ -461,8 +467,8 @@ private:
         // ---- VOICE CHAIN ----
         const float vTarget = cur.voiceOn ? 1.0f : 0.0f;
         const float thrDb = -10.0f + (m.thrDb + 10.0f) * s, ratio = 1.0f + (m.ratio - 1.0f) * s;
-        const float makeup = dbToGain ((-thrDb) * (1.0f - 1.0f / ratio) * 0.4f);
-        const float aC = coefMs (8.0f, fs), rC = coefMs (160.0f, fs);   // slower attack = no crunch on consonants
+        const float makeup = dbToGain ((-thrDb) * (1.0f - 1.0f / ratio) * m.makeupK);
+        const float aC = coefMs (m.attackMs, fs), rC = coefMs (m.attackMs > 5.0f ? 160.0f : 130.0f, fs);
         const float aD = coefMs (1.0f, fs), rD = coefMs (60.0f, fs);
         const float warm = m.warmth * s;
         if (std::abs (demonMix - lastChest) > 0.01f) { chest.lowShelf (fs, 110.0f, 3.0f * demonMix); lastChest = demonMix; }
@@ -589,7 +595,7 @@ private:
             const float cT = cur.clipOn ? 1.0f : 0.0f;
             clipMix = cT + (clipMix - cT) * 0.9995f;
             {
-                const float drive = 1.6f, back = 1.12f / drive;   // 0.15: +4 dB into the clipper (was +8): denser, no crunch
+                const float drive = 2.5f, back = 1.26f / drive;   // +8 dB (the 0.13 CLIP the client liked; only in RADIO / CLUB MC / HYPE MC)
                 const float cl = clipL.process (l * drive) * back, cr = clipR.process (r * drive) * back;
                 if (clipMix > 0.0005f) { l += (cl - l) * clipMix; r += (cr - r) * clipMix; }
             }

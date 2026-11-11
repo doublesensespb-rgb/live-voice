@@ -1,6 +1,6 @@
 # LIVE VOICE (repo: live-voice) — guide for AI agents and developers
 
-Read this whole file before changing anything. Current version: **0.15** (`set(LIVEVOICE_LABEL "0.15")` + `project(... VERSION 0.1.5)` in CMakeLists.txt).
+Read this whole file before changing anything. Current version: **0.16** (`set(LIVEVOICE_LABEL "0.16")` + `project(... VERSION 0.1.6)` in CMakeLists.txt).
 
 ## 1. Product
 
@@ -90,7 +90,14 @@ v0.15 (owner video: CLEAN sounded lowered, some presets 'overloaded / hum'): ON/
 turned last time had lowered CLEAN invisibly) and MUTE resets; hidden tab shows a PITCH badge when it differs from the
 preset. Softer sound: modes retuned (lower ratios, almost no warmth), comp attack 8 ms, makeup x0.4, AGC max +8, CLIP
 +4 dB (was +8) and only in RADIO/CLUB MC/HYPE MC, BRUTAL mass x1.0 / grit x0.6, mud cut -0.5 dB per semitone down.
-Measured THD at a loud 220 Hz tone: TRAILER 10.2% -> 2.0%, TITAN 6.0 -> 1.0, DEEP 3.9 -> 0.1.
+Measured THD at a loud 220 Hz tone: TRAILER 10.2% -> 2.0%, TITAN 6.0 -> 1.0, DEEP 3.9 -> 0.1. (0.15 was never released.)
+v0.16 (client after 0.13: CLEAN / RADIO / CLUB MC / HYPE MC are good; the lowered ones are 'too fierce, like a filter on the
+voice', want organic and subtle but audible): modes 0-3 restored to the EXACT 0.13 values (ModeSpec got attackMs / makeupK /
+agcMaxDb per mode; CLIP +8 dB again, only on those presets) - measured identical to 0.13. New soft modes 4 HOST LOW and
+5 DEEP SOFT for lowered presets; lowering WARM -1, DEEP -1.5, BIG HOST -2, TRAILER -2.5, GIANT -3, TITAN -4; no clip;
+BRUTAL 10/15/30 %; presence +0.4 dB per semitone down (clarity band now equal to the good presets instead of -3..-4 dB).
+THD of the lowered presets 3-10 % -> 0.1-0.9 %. CLEAN has WIDE 15 %. Knob stays -6..+6.
+DO NOT change modes 0-3 or the CLEAN/RADIO/CLUB MC/HYPE MC tiles without the owner asking.
 
 ## 6. How it was made
 Built by the owner talking to Claude (Anthropic) in a claude.ai session; the owner described, Claude wrote the code,

@@ -38,16 +38,18 @@ struct VoicePreset { const char* name; const char* hint; int mode; float strengt
 inline constexpr int kNumVoices = 10;
 inline const VoicePreset kVoices[kNumVoices] =
 {
-    { "CLEAN",    "natural, just cleaner",  0, 0.60f,   0.0f, false, { 0.00f, 0.0f, 0.00f, 0.00f } },
-    { "RADIO",    "dense FM host",          1, 0.85f,   0.0f, true,  { 0.20f, 0.0f, 0.00f, 0.00f } },
-    { "CLUB MC",  "cuts through music",     2, 0.85f,   0.0f, true,  { 0.20f, 0.0f, 0.00f, 0.00f } },
-    { "WARM",     "close & velvet",         3, 0.70f,  -1.0f, false, { 0.25f, 0.0f, 0.00f, 0.00f } },
-    { "DEEP",     "deep announcer",         3, 0.80f,  -2.0f, false,  { 0.25f, 0.0f, 0.00f, 0.00f } },
-    { "BIG HOST", "huge stadium voice",     1, 0.85f,  -3.0f, false,  { 0.30f, 0.0f, 0.00f, 0.00f } },
-    { "GIANT",    "heavy & dark",           3, 0.80f,  -4.0f, false,  { 0.20f, 0.0f, 0.00f, 0.25f } },
-    { "TITAN",    "lowest, massive",        1, 0.80f,  -6.0f, false,  { 0.20f, 0.0f, 0.00f, 0.35f } },
-    { "TRAILER",  "movie trailer voice",    1, 0.85f,  -3.0f, false,  { 0.25f, 0.0f, 0.15f, 0.50f } },
-    { "HYPE MC",  "club host + echo",       2, 0.85f,   0.0f, true,  { 0.25f, 0.0f, 0.40f, 0.00f } },
+    // 0.16: CLEAN / RADIO / CLUB MC / HYPE MC = the 0.13 sound (+ a little WIDE on CLEAN).
+    // Lowered ones: much smaller lowering, soft modes 4/5, no clip, BRUTAL only as a hint of weight.
+    { "CLEAN",    "natural, just better",   0, 0.60f,  0.0f, false, { 0.15f, 0.0f, 0.00f, 0.00f } },
+    { "RADIO",    "dense FM host",          1, 0.85f,  0.0f, true,  { 0.20f, 0.0f, 0.00f, 0.00f } },
+    { "CLUB MC",  "cuts through music",     2, 0.85f,  0.0f, true,  { 0.20f, 0.0f, 0.00f, 0.00f } },
+    { "WARM",     "close & velvet",         5, 0.70f, -1.0f, false, { 0.25f, 0.0f, 0.00f, 0.00f } },
+    { "DEEP",     "deep announcer",         5, 0.80f, -1.5f, false, { 0.25f, 0.0f, 0.00f, 0.00f } },
+    { "BIG HOST", "huge stadium voice",     4, 0.85f, -2.0f, false, { 0.30f, 0.0f, 0.00f, 0.00f } },
+    { "GIANT",    "heavy & dark",           5, 0.80f, -3.0f, false, { 0.20f, 0.0f, 0.00f, 0.10f } },
+    { "TITAN",    "lowest, massive",        4, 0.80f, -4.0f, false, { 0.20f, 0.0f, 0.00f, 0.15f } },
+    { "TRAILER",  "movie trailer voice",    4, 0.85f, -2.5f, false, { 0.25f, 0.0f, 0.15f, 0.30f } },
+    { "HYPE MC",  "club host + echo",       2, 0.85f,  0.0f, true,  { 0.25f, 0.0f, 0.40f, 0.00f } },
 };
 
 class LiveVoiceProcessor final : public juce::AudioProcessor

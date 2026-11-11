@@ -12,8 +12,8 @@ LiveVoiceProcessor::LiveVoiceProcessor()
     const char* ids[] = { ParamID::voiceOn, ParamID::mode, ParamID::strength, ParamID::pitch, ParamID::formant,
                           ParamID::sfxOn, ParamID::sfxType, ParamID::sfxAmount, ParamID::mute, ParamID::output, ParamID::clipOn,
                           ParamID::wideOn, ParamID::wideAmt, ParamID::shimOn, ParamID::shimAmt, ParamID::echoOn, ParamID::echoAmt,
-                          ParamID::brutalOn, ParamID::brutalAmt };
-    for (int i = 0; i < 19; ++i) p[i] = apvts.getRawParameterValue (ids[i]);
+                          ParamID::brutalOn, ParamID::brutalAmt, ParamID::voice };
+    for (int i = 0; i < 20; ++i) p[i] = apvts.getRawParameterValue (ids[i]);
 }
 
 AudioProcessorValueTreeState::ParameterLayout LiveVoiceProcessor::createLayout()
@@ -71,7 +71,8 @@ void LiveVoiceProcessor::processBlock (AudioBuffer<float>& buf, MidiBuffer&)
 {
     ScopedNoDenormals nd;
     lv::Params q;
-    q.voiceOn   = p[0]->load() > 0.5f;
+    q.voiceOn   = true;                     // the voice chain always runs ...
+    q.bypass    = p[0]->load() < 0.5f;      // ... and ON/OFF is a full bypass to the raw mic (0.15)
     q.mode      = (int) p[1]->load();
     q.strength  = p[2]->load();
     q.pitch     = 0.0f;   // legacy note shift: removed in 0.11 (sounded hissy on speech), PITCH = voice size (formant)
@@ -121,6 +122,10 @@ void LiveVoiceProcessor::setStateInformation (const void* data, int size)
             const String pf = st.getProperty ("presetFile", "").toString();
             presetFile = pf.isNotEmpty() && File::isAbsolutePath (pf) ? File (pf) : File();
             apvts.replaceState (st);
+            // 0.15: what is lit is what you hear - every start re-applies the selected VOICE tile completely
+            // (a PITCH knob left turned last time must not secretly lower CLEAN), and never starts muted
+            applyVoicePreset (jlimit (0, kNumVoices - 1, (int) p[19]->load()));
+            if (auto* m = apvts.getParameter (ParamID::mute)) m->setValueNotifyingHost (0.0f);
             undo.clearUndoHistory();
         }
 }
@@ -199,6 +204,26 @@ bool LiveVoiceProcessor::loadPreset (const File& f)
     presetName = xml->getStringAttribute ("name", f.getFileNameWithoutExtension());
     presetFile = f;
     return true;
+}
+
+void LiveVoiceProcessor::applyVoicePreset (int i)
+{
+    i = jlimit (0, kNumVoices - 1, i);
+    const auto& v = kVoices[i];
+    auto set = [this] (const char* id, float value)
+    {
+        if (auto* prm = apvts.getParameter (id)) prm->setValueNotifyingHost (prm->convertTo0to1 (value));
+    };
+    set (ParamID::voice, (float) i);
+    set (ParamID::mode, (float) v.mode);
+    set (ParamID::strength, v.strength);
+    set (ParamID::formant, v.pitch);
+    set (ParamID::clipOn, v.clip ? 1.0f : 0.0f);
+    for (int k = 0; k < 4; ++k)
+    {
+        if (v.fx[k] > 0.0f) set (kFxAmt[k], v.fx[k]);
+        set (kFxOn[k], v.fx[k] > 0.0f ? 1.0f : 0.0f);
+    }
 }
 
 void LiveVoiceProcessor::initSound()

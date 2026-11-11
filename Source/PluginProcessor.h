@@ -38,15 +38,15 @@ struct VoicePreset { const char* name; const char* hint; int mode; float strengt
 inline constexpr int kNumVoices = 10;
 inline const VoicePreset kVoices[kNumVoices] =
 {
-    { "CLEAN",    "natural, just better",   0, 0.60f,   0.0f, false, { 0.00f, 0.0f, 0.00f, 0.00f } },
+    { "CLEAN",    "natural, just cleaner",  0, 0.60f,   0.0f, false, { 0.00f, 0.0f, 0.00f, 0.00f } },
     { "RADIO",    "dense FM host",          1, 0.85f,   0.0f, true,  { 0.20f, 0.0f, 0.00f, 0.00f } },
     { "CLUB MC",  "cuts through music",     2, 0.85f,   0.0f, true,  { 0.20f, 0.0f, 0.00f, 0.00f } },
     { "WARM",     "close & velvet",         3, 0.70f,  -1.0f, false, { 0.25f, 0.0f, 0.00f, 0.00f } },
-    { "DEEP",     "deep announcer",         3, 0.80f,  -2.0f, true,  { 0.25f, 0.0f, 0.00f, 0.00f } },
-    { "BIG HOST", "huge stadium voice",     1, 0.90f,  -3.0f, true,  { 0.30f, 0.0f, 0.00f, 0.00f } },
-    { "GIANT",    "heavy & dark",           3, 0.85f,  -4.0f, true,  { 0.20f, 0.0f, 0.00f, 0.25f } },
-    { "TITAN",    "lowest, massive",        1, 0.90f,  -6.0f, true,  { 0.20f, 0.0f, 0.00f, 0.35f } },
-    { "TRAILER",  "movie trailer voice",    1, 0.90f,  -3.0f, true,  { 0.25f, 0.0f, 0.15f, 0.50f } },
+    { "DEEP",     "deep announcer",         3, 0.80f,  -2.0f, false,  { 0.25f, 0.0f, 0.00f, 0.00f } },
+    { "BIG HOST", "huge stadium voice",     1, 0.85f,  -3.0f, false,  { 0.30f, 0.0f, 0.00f, 0.00f } },
+    { "GIANT",    "heavy & dark",           3, 0.80f,  -4.0f, false,  { 0.20f, 0.0f, 0.00f, 0.25f } },
+    { "TITAN",    "lowest, massive",        1, 0.80f,  -6.0f, false,  { 0.20f, 0.0f, 0.00f, 0.35f } },
+    { "TRAILER",  "movie trailer voice",    1, 0.85f,  -3.0f, false,  { 0.25f, 0.0f, 0.15f, 0.50f } },
     { "HYPE MC",  "club host + echo",       2, 0.85f,   0.0f, true,  { 0.25f, 0.0f, 0.40f, 0.00f } },
 };
 
@@ -88,13 +88,14 @@ public:
     bool savePreset (const juce::String& name, const juce::String& folder);
     bool loadPreset (const juce::File&);
     void initSound();                                            // all parameters to default (one undo step)
+    void applyVoicePreset (int index);                           // writes a VOICE tile's full sound (also on every start)
     void installFactoryPresets();                                // writes the factory set once (missing files only)
     juce::String presetName { "INIT" };
     juce::File presetFile;
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createLayout();
-    std::atomic<float>* p[19] {};
+    std::atomic<float>* p[20] {};
     std::vector<float> inCopy;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LiveVoiceProcessor)
 };

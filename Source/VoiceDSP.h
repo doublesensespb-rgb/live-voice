@@ -135,10 +135,11 @@ struct ModeSpec
 };
 inline const ModeSpec kModes[4] =
 {
-    { "NATURAL", "clean & even",        90.0f, -2.0f, 320.0f, -22.0f, 2.5f, 1.0f, 140.0f, 2.5f, 4200.0f, 1.0f, 0.55f, 0.10f },
-    { "RADIO",   "dense FM host",       80.0f, -3.5f, 340.0f, -30.0f, 5.0f, 3.5f, 130.0f, 3.5f, 3600.0f, 1.5f, 0.80f, 0.35f },
-    { "CLUB",    "cuts through music", 140.0f, -4.0f, 300.0f, -32.0f, 6.0f, 0.0f, 150.0f, 5.0f, 3000.0f, 2.0f, 0.90f, 0.30f },
-    { "DEEP",    "warm & low",          80.0f, -3.5f, 380.0f, -26.0f, 3.5f, 2.5f, 120.0f, 2.0f, 4000.0f, -0.5f, 0.60f, 0.25f },
+    // 0.15: softer and cleaner (owner: "overload / hum" on some presets): gentler ratios, almost no saturation
+    { "NATURAL", "clean & even",        90.0f, -1.5f, 320.0f, -20.0f, 2.0f, 0.0f, 140.0f, 1.5f, 4200.0f, 0.8f, 0.50f, 0.00f },
+    { "RADIO",   "dense FM host",       85.0f, -3.0f, 340.0f, -26.0f, 3.0f, 2.0f, 130.0f, 2.5f, 3600.0f, 1.2f, 0.70f, 0.08f },
+    { "CLUB",    "cuts through music", 130.0f, -3.5f, 300.0f, -27.0f, 3.5f, 0.0f, 150.0f, 3.5f, 3000.0f, 1.5f, 0.80f, 0.06f },
+    { "DEEP",    "warm & low",          85.0f, -3.5f, 380.0f, -24.0f, 2.5f, 1.5f, 120.0f, 2.0f, 4000.0f, -0.3f, 0.60f, 0.06f },
 };
 
 struct SfxSpec { const char* name; const char* hint; };
@@ -168,6 +169,7 @@ struct Params
     bool  mute = false;
     float outDb = 0.0f;
     bool  clipOn = false;     // CLIP button: dense radio clipper, level-matched
+    bool  bypass = false;     // 0.15: the ON/OFF button. true = output the raw mic (nothing else)
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -249,7 +251,7 @@ public:
     {
         fs = sr; maxN = std::max (32, maxBlock);
         main.prepare (sr, maxN); demon.prepare (sr, maxN); shimmerPs.prepare (sr, maxN);
-        gateBuf.assign ((size_t) maxN, 0);
+        gateBuf.assign ((size_t) maxN, 0); rawBuf.assign ((size_t) maxN, 0);
         gateDl.init (main.latency() + 64); dryDl.init (main.latency() + 64);
         mono.assign ((size_t) maxN, 0); pitched.assign ((size_t) maxN, 0); demonBuf.assign ((size_t) maxN, 0);
         shimIn.assign ((size_t) maxN, 0); shimOut.assign ((size_t) maxN, 0);
@@ -273,7 +275,7 @@ public:
         brEnv = 0; wideMix = shimMix = echoMix = 0;
         gateEnv = 0; gateGain = 0; compEnv = 0; deessEnv = 0; limGain = 1; shimFbL = shimFbR = 0; voiceEnv = 0;
         pitchSm = cur.pitch; formantSm = cur.formant; muteGain = cur.mute ? 0.0f : 1.0f;
-        voiceMix = cur.voiceOn ? 1.0f : 0.0f; demonMix = 0;
+        voiceMix = cur.voiceOn ? 1.0f : 0.0f; demonMix = 0; bypassMix = cur.bypass ? 1.0f : 0.0f;
         clipL.reset(); clipR.reset(); clipMix = cur.clipOn ? 1.0f : 0.0f;
         directMix = (std::abs (cur.pitch) < 0.005f && std::abs (cur.formant) < 0.005f) ? 1.0f : 0.0f; directHold = 0; agcEnv = 0;
         lastMode = -1;
@@ -307,6 +309,7 @@ private:
     DelayLine wideDl, echoL, echoR;
     Fdn fdn;
     float gateEnv = 0, gateGain = 0, compEnv = 0, deessEnv = 0, limGain = 1, voiceEnv = 0;
+    std::vector<float> rawBuf; float bypassMix = 0;   // 0.15: OFF = the clean mic, nothing else
     float pitchSm = 0, formantSm = 0, muteGain = 1, voiceMix = 1, demonMix = 0, shimFbL = 0, shimFbR = 0;
     float directMix = 1, directHold = 0;   // 1 = voice bypasses the pitch shifter (no latency)
     float agcDb = 0, agcEnv = 0;           // auto level
@@ -329,7 +332,7 @@ private:
         const float hf = m.hpf + 5.0f * std::clamp (-cur.formant, 0.0f, 6.0f);   // lowered voice -> cut the boom a bit higher
         hpf1.hp (fs, hf, 0.54f); hpf2.hp (fs, hf, 1.31f);           // 4th order Butterworth
         lastHpfFormant = cur.formant;
-        mud.peak (fs, m.mudHz, 1.0f, m.mudDb * s);
+        mud.peak (fs, m.mudHz, 1.0f, m.mudDb * s - 0.5f * std::clamp (-cur.formant, 0.0f, 6.0f));   // lowered voice: clean the low-mids more
         body.lowShelf (fs, m.bodyHz, m.bodyDb * s);
         pres.peak (fs, m.presHz, 0.8f, m.presDb * s);
         air.highShelf (fs, 10000.0f, m.airDb * s);
@@ -365,6 +368,7 @@ private:
         for (int i = 0; i < n; ++i)
         {
             float x = (useL ? inL[i] : 0.0f) * wl + (useR ? inR[i] : 0.0f) * (useL && useR ? 0.5f : 1.0f);
+            rawBuf[(size_t) i] = x;
             pk = std::max (pk, std::abs (x));
             // HPF only when the voice chain is on
             const float h = hpf2.process (hpf1.process (x));
@@ -393,7 +397,7 @@ private:
             {
                 agcEnv += (x * x - agcEnv) * 0.0005f;
                 const float rmsDb = 10.0f * std::log10 (agcEnv + 1e-12f) + agcDb;
-                const float want = std::clamp (-20.0f - (rmsDb - agcDb), -6.0f, 12.0f);
+                const float want = std::clamp (-20.0f - (rmsDb - agcDb), -6.0f, 8.0f);
                 agcDb += (want - agcDb) * (float) (3.0 / fs / 6.0);
             }
             x *= dbToGain (agcDb * voiceMix);
@@ -435,7 +439,7 @@ private:
                 const float a = std::abs (d);
                 brEnv = a > brEnv ? a + (brEnv - a) * cA : a + (brEnv - a) * cR;
                 const float g = brEnv > thr ? std::pow (thr / brEnv, 0.75f) : 1.0f;   // 4:1
-                pitched[(size_t) i] += d * g * 1.6f * demonMix;
+                pitched[(size_t) i] += d * g * 1.0f * demonMix;
             }
         }
 
@@ -457,12 +461,12 @@ private:
         // ---- VOICE CHAIN ----
         const float vTarget = cur.voiceOn ? 1.0f : 0.0f;
         const float thrDb = -10.0f + (m.thrDb + 10.0f) * s, ratio = 1.0f + (m.ratio - 1.0f) * s;
-        const float makeup = dbToGain ((-thrDb) * (1.0f - 1.0f / ratio) * 0.5f);
-        const float aC = coefMs (3.0f, fs), rC = coefMs (130.0f, fs);
+        const float makeup = dbToGain ((-thrDb) * (1.0f - 1.0f / ratio) * 0.4f);
+        const float aC = coefMs (8.0f, fs), rC = coefMs (160.0f, fs);   // slower attack = no crunch on consonants
         const float aD = coefMs (1.0f, fs), rD = coefMs (60.0f, fs);
         const float warm = m.warmth * s;
         if (std::abs (demonMix - lastChest) > 0.01f) { chest.lowShelf (fs, 110.0f, 3.0f * demonMix); lastChest = demonMix; }
-        const float gk = 2.0f + 6.0f * demonMix, gBias = 0.12f, gSlope = 1.0f - std::tanh (gk * gBias) * std::tanh (gk * gBias);
+        const float gk = 1.5f + 3.0f * demonMix, gBias = 0.12f, gSlope = 1.0f - std::tanh (gk * gBias) * std::tanh (gk * gBias);
         float grMax = 0;
         for (int i = 0; i < n; ++i)
         {
@@ -496,7 +500,7 @@ private:
             {
                 const float bp = gritLp.process (gritHp.process (x));
                 const float sat = (std::tanh (gk * (bp + gBias)) - std::tanh (gk * gBias)) / gk;
-                x += (sat - bp * gSlope) * 1.6f * demonMix;           // only the added harmonics
+                x += (sat - bp * gSlope) * 0.6f * demonMix;           // only the added harmonics (gentle)
                 x = chest.process (x);
             }
             pitched[(size_t) i] = dry + (x - dry) * vm;
@@ -585,10 +589,14 @@ private:
             const float cT = cur.clipOn ? 1.0f : 0.0f;
             clipMix = cT + (clipMix - cT) * 0.9995f;
             {
-                const float drive = 2.5f, back = 1.26f / drive;
+                const float drive = 1.6f, back = 1.12f / drive;   // 0.15: +4 dB into the clipper (was +8): denser, no crunch
                 const float cl = clipL.process (l * drive) * back, cr = clipR.process (r * drive) * back;
                 if (clipMix > 0.0005f) { l += (cl - l) * clipMix; r += (cr - r) * clipMix; }
             }
+            // OFF = full bypass: crossfade to the raw mic (no pitch, effects, clip; 0 ms)
+            const float bT = cur.bypass ? 1.0f : 0.0f;
+            bypassMix = bT + (bypassMix - bT) * 0.9990f;
+            if (bypassMix > 0.0005f) { const float raw = rawBuf[(size_t) i]; l += (raw - l) * bypassMix; r += (raw - r) * bypassMix; }
             // output gain + mute (smoothed) + limiter (ceiling -1 dBFS)
             muteGain = mT + (muteGain - mT) * 0.998f;
             l *= out * muteGain; r *= out * muteGain;

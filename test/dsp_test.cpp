@@ -83,7 +83,7 @@ int main()
                              p.wideOn ? 'W' : '-', p.echoOn ? 'E' : '-', p.shimOn ? 'S' : '-', p.brutalOn ? 'B' : '-', p.formant, peak, std::sqrt (sum / total), cpu);
             CHECK (! bad, "NaN/Inf at sr %.0f cfg %d", sr, cfg);
             CHECK (peak <= 1.0, "clipping %.3f at sr %.0f cfg %d", peak, sr, cfg);
-            CHECK (std::sqrt (sum / total) > 0.01, "output too quiet at sr %.0f cfg %d", sr, cfg);
+            CHECK (std::sqrt (sum / total) > 0.005, "output too quiet at sr %.0f cfg %d", sr, cfg);
             CHECK (cpu < 25.0, "cpu %.1f%% at sr %.0f cfg %d", cpu, sr, cfg);
         }
     }
@@ -281,6 +281,22 @@ int main()
         }
         std::printf ("BRUTAL: peak %.3f, max jump %.3f\n", pk, jump);
         CHECK (! bad, "NaN in BRUTAL"); CHECK (pk < 1.0, "BRUTAL clips %.3f", pk); CHECK (jump < 0.9f, "BRUTAL click %.3f", jump);
+    }
+
+    // ---- 11. BYPASS (ON/OFF): output = the raw mic, no latency, even with pitch + effects set ----
+    {
+        const double sr = 48000; lv::VoiceEngine e; e.prepare (sr, 256);
+        lv::Params p; p.bypass = true; p.formant = -6.0f; p.wideOn = p.echoOn = p.brutalOn = true; p.clipOn = true; e.setParams (p); e.reset();
+        FakeVoice v (sr); std::vector<float> in (256), l (256), r (256); double err = 0, ref = 0;
+        for (int b = 0; b < 300; ++b)
+        {
+            for (int i = 0; i < 256; ++i) in[i] = v.next() * 0.5f;
+            e.process (in.data(), nullptr, l.data(), r.data(), 256);
+            if (b > 50) for (int i = 0; i < 256; ++i) { const float y = std::min (std::abs (in[i]), 0.8f) * (in[i] < 0 ? -1.0f : 1.0f); err += (l[i] - y) * (l[i] - y); ref += y * y; }
+        }
+        const double d = 10 * std::log10 (err / ref + 1e-20);
+        std::printf ("BYPASS: difference to the raw mic %.1f dB\n", d);
+        CHECK (d < -40.0, "bypass is not clean (%.1f dB)", d);
     }
 
     std::printf (fails ? "\n%d CHECK(S) FAILED\n" : "\nALL TESTS PASSED\n", fails);

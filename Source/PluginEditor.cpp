@@ -233,6 +233,18 @@ void LiveVoiceLook::drawButtonText (Graphics& g, TextButton& b, bool, bool)
         g.addTransform (AffineTransform::rotation (-MathConstants<float>::halfPi, c.x, c.y));
         g.setColour (Palette::text); g.setFont (uiFont (13.0f, true, 0.18f));
         g.drawText ("SHOW  PITCH & EFFECTS", Rectangle<float> ((float) r.getHeight() - 40.0f, 30.0f).withCentre (c).toNearestInt(), Justification::centred);
+        const String badge = b.getProperties()["badge"].toString();
+        if (badge.isNotEmpty())
+        {
+            Graphics::ScopedSaveState s2 (g);
+            g.addTransform (AffineTransform::rotation (MathConstants<float>::halfPi, c.x, c.y));   // undo the rotation
+            auto br = Rectangle<float> ((float) r.getWidth() - 6.0f, 40.0f).withCentre ({ c.x, (float) r.getBottom() - 34.0f });
+            g.setColour (Palette::accent.withAlpha (0.18f)); g.fillRoundedRectangle (br, 6.0f);
+            g.setColour (Palette::glow); g.setFont (uiFont (10.0f, true, 0.1f));
+            g.drawText ("PITCH", br.removeFromTop (18.0f).toNearestInt(), Justification::centredBottom);
+            g.setFont (uiFont (12.5f, true));
+            g.drawText (badge, br.toNearestInt(), Justification::centredTop);
+        }
         return;
     }
     if (kind == "arrow")
@@ -500,18 +512,8 @@ void LiveVoiceEditor::setParam (const char* id, float v)
 
 void LiveVoiceEditor::selectVoice (int i)
 {
-    const auto& v = kVoices[i];
-    setParam (ParamID::voice, (float) i);
+    proc.applyVoicePreset (i);
     setParam (ParamID::voiceOn, 1.0f);
-    setParam (ParamID::mode, (float) v.mode);
-    setParam (ParamID::strength, v.strength);
-    setParam (ParamID::formant, v.pitch);
-    setParam (ParamID::clipOn, v.clip ? 1.0f : 0.0f);
-    for (int k = 0; k < 4; ++k)
-    {
-        if (v.fx[k] > 0.0f) setParam (kFxAmt[k], v.fx[k]);
-        setParam (kFxOn[k], v.fx[k] > 0.0f ? 1.0f : 0.0f);
-    }
     refresh();
 }
 
@@ -521,6 +523,10 @@ void LiveVoiceEditor::refresh()
     const bool on = getParam (ParamID::voiceOn) > 0.5f;
     for (auto* t : tiles) { t->setToggleState (t->index == v, dontSendNotification); t->setAlpha (on ? 1.0f : 0.45f); }
     pitchKnob.setDoubleClickReturnValue (true, kVoices[v].pitch);
+    // hidden module: show on the tab when PITCH differs from the preset, so nothing is lowered "invisibly"
+    const float pv = getParam (ParamID::formant);
+    const String badge = std::abs (pv - kVoices[v].pitch) > 0.05f ? semis (pv).upToFirstOccurrenceOf (" ", false, false) : String();
+    if (hideBtn.getProperties()["badge"].toString() != badge) { hideBtn.getProperties().set ("badge", badge); hideBtn.repaint(); }
     for (int k = 0; k < 4; ++k) fxBars[k]->setAlpha (getParam (kFxOn[k]) > 0.5f ? 1.0f : 0.35f);
 }
 

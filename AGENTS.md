@@ -53,6 +53,7 @@ Audio is processed in 32-sample chunks. Modes: NATURAL, RADIO, CLUB, DEEP (`kMod
 | `test/dsp_test.cpp` | DSP tests: NaN, clipping, latency (direct ~0, pitch ~30 ms), noise floor, pitch accuracy, live knob sweep clicks, CPU |
 | `third_party/` | Signalsmith Stretch 1.3.2 + Signalsmith Linear 0.6.6 (MIT), vendored so offline builds work |
 | `docs/README-RU.txt` | Client instructions, shipped inside the zip |
+| `docs/LIVE-VOICE-Инструкция.pdf` | Illustrated manual for non-technical users (10 pages, shipped inside the zip). Source: `docs/manual/manual.html` + `docs/manual/img/` (annotated screenshots from Snapshot modes doc-start / doc-full). Rebuild: `google-chrome --headless=new --print-to-pdf=... docs/manual/manual.html`. Update it when the UI or presets change |
 | `docs/OFFLINE-RU.txt` | Owner's full offline handbook (use, feedback, latency, offline build, continue with another AI). Update it every version and put a copy in the root of the offline archive |
 
 ## 4. Build pipeline

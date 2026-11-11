@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>LIVE VOICE — инструкция</title>
+<style>
+  @font-face { font-family: Inter; src: url("file:///usr/share/fonts/opentype/inter/Inter-Regular.otf"); font-weight: 400; }
+  @font-face { font-family: Inter; src: url("file:///usr/share/fonts/opentype/inter/Inter-Medium.otf"); font-weight: 500; }
+  @font-face { font-family: Inter; src: url("file:///usr/share/fonts/opentype/inter/Inter-SemiBold.otf"); font-weight: 600; }
+  @font-face { font-family: Inter; src: url("file:///usr/share/fonts/opentype/inter/Inter-Bold.otf"); font-weight: 700; }
+  @page { size: A4; margin: 16mm 16mm 18mm 16mm; }
+  :root { --ink:#1f2124; --dim:#5d6066; --cop:#c97a45; --copbg:#fbf1ea; --line:#e4e1dd; --dark:#222426; }
+  * { box-sizing: border-box; }
+  body { font-family: Inter, sans-serif; color: var(--ink); font-size: 11.2pt; line-height: 1.5; margin: 0; }
+  h1 { font-size: 30pt; letter-spacing: .06em; margin: 0; font-weight: 600; }
+  h2 { font-size: 17pt; margin: 26px 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--cop); break-after: avoid; }
+  h2 .n { display:inline-block; width: 30px; height: 30px; border-radius: 50%; background: var(--cop); color:#fff; text-align:center; line-height:30px; font-size: 14pt; margin-right: 8px; }
+  h3 { font-size: 13pt; margin: 16px 0 6px; break-after: avoid; }
+  p { margin: 6px 0; }
+  img { max-width: 100%; display: block; border-radius: 8px; }
+  .shot { border: 1px solid var(--line); margin: 10px 0 6px; }
+  .cap { color: var(--dim); font-size: 9.5pt; margin-bottom: 10px; }
+  .tip, .warn, .ok { border-radius: 10px; padding: 10px 14px; margin: 10px 0; break-inside: avoid; }
+  .tip { background: var(--copbg); border-left: 5px solid var(--cop); }
+  .warn { background: #fdecea; border-left: 5px solid #d9534f; }
+  .ok { background: #edf7ee; border-left: 5px solid #4caf50; }
+  ol, ul { margin: 6px 0 6px 0; padding-left: 22px; }
+  li { margin: 4px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; font-size: 10.5pt; break-inside: auto; }
+  th { text-align: left; background: var(--dark); color: #fff; padding: 7px 9px; font-weight: 600; }
+  td { padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr { break-inside: avoid; }
+  .key { display:inline-block; border:1px solid #bbb; border-bottom-width:3px; border-radius:5px; padding:0 7px; font-weight:600; font-size: 10pt; background:#fafafa; }
+  .num { display:inline-block; width: 22px; height: 22px; border-radius: 50%; background: var(--cop); color:#fff; text-align:center; line-height:22px; font-weight:700; font-size: 10pt; margin-right: 4px; }
+  .cover { height: 250mm; display:flex; flex-direction:column; justify-content:center; break-after: page; }
+  .cover .sub { letter-spacing: .3em; color: var(--dim); font-weight:600; margin: 6px 0 30px; }
+  .cover .big { font-size: 15pt; max-width: 150mm; }
+  .page { break-before: page; }
+  .two { display:flex; gap: 14px; }
+  .two > div { flex:1; }
+  .cheat td, .cheat th { font-size: 11pt; padding: 8px 10px; }
+  .small { font-size: 9.5pt; color: var(--dim); }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>LIVE VOICE</h1>
+  <div class="sub">ИНСТРУКЦИЯ ДЛЯ ВЕДУЩЕГО · ВЕРСИЯ 0.16</div>
+  <img src="img/app-start.png" class="shot" style="margin-bottom:24px">
+  <p class="big">Программа делает голос в микрофоне <b>дорогим и «радийным»</b> прямо во время мероприятия. Нажали кнопку с подходящим голосом — и всё. Разбираться в звуке не нужно.</p>
+</div>
+
+<h2><span class="n">1</span>Что это и зачем</h2>
+<p>LIVE VOICE стоит между микрофоном и колонками. Ваш голос проходит через программу, и в колонки уходит уже <b>улучшенный</b> голос: ровный по громкости, чистый, без шума в паузах, разборчивый на фоне музыки. По желанию голос можно сделать <b>ниже и мощнее</b> или добавить эффект — эхо, «ширину».</p>
+<p>Настраивать ничего не нужно: внутри уже есть <b>10 готовых голосов</b> (их называют пресетами). Выбираете подходящий — и говорите.</p>
+
+<h2><span class="n">2</span>Что понадобится</h2>
+<ul>
+  <li><b>Ноутбук или компьютер с Windows 10 или 11.</b></li>
+  <li><b>Микрофон</b>: USB-микрофон (втыкается прямо в ноутбук) или обычный микрофон через звуковую карту / DJ-контроллер.</li>
+  <li><b>Куда выводить звук</b>: наушники, колонки или выход на пульт (обычно — та же звуковая карта / контроллер).</li>
+</ul>
+<div class="tip">Интернет программе <b>не нужен</b>. Установка тоже не нужна — это одна программа-файл.</div>
+
+<h2 class="page"><span class="n">3</span>Как запустить (первый раз)</h2>
+<ol>
+  <li>Распакуйте архив <b>LIVE-VOICE-0.16-Windows.zip</b> в любую папку, например на Рабочий стол (правой кнопкой по архиву → «Извлечь всё»).</li>
+  <li>Дважды щёлкните по файлу <b>LIVE VOICE.exe</b>.</li>
+  <li>Windows может показать синее окно «Система Windows защитила ваш компьютер». <b>Это нормально</b>: так Windows реагирует на любую новую программу без платной подписи. Сделайте так:</li>
+</ol>
+<div class="two">
+  <div><img src="img/smartscreen-1.png" class="shot" style="max-height:75mm;margin:6px auto"><div class="cap">Шаг 1. Нажмите <b>«Подробнее»</b> (обведено красным).</div></div>
+  <div><img src="img/smartscreen-2.png" class="shot" style="max-height:75mm;margin:6px auto"><div class="cap">Шаг 2. Появится кнопка — нажмите <b>«Выполнить в любом случае»</b>.</div></div>
+</div>
+<div class="ok">Это окно появляется <b>только один раз</b>. Дальше программа будет открываться сразу.</div>
+
+<h2 class="page"><span class="n">4</span>Выбор микрофона и колонок (один раз)</h2>
+<p>При самом первом запуске программа сама откроет окно <b>Audio/MIDI Settings</b>. В нём нужно выбрать, <b>откуда</b> брать голос и <b>куда</b> его отправлять.</p>
+<img src="img/audio-window.png" class="shot" style="width:88%;margin:8px auto">
+<div class="cap">Примерный вид окна. Названия устройств у вас будут свои.</div>
+<table>
+  <tr><th style="width:44px">№</th><th style="width:170px">Строка</th><th>Что выбрать</th></tr>
+  <tr><td><span class="num">1</span></td><td>Audio device type</td><td><b>Windows Audio (Low Latency Mode)</b>. Если такого пункта нет или звук не идёт — просто <b>Windows Audio</b>. Если у вас профессиональная звуковая карта — можно выбрать <b>ASIO</b>.</td></tr>
+  <tr><td><span class="num">2</span></td><td>Output</td><td>Куда пойдёт голос: <b>наушники, колонки или выход звуковой карты на пульт</b>.</td></tr>
+  <tr><td><span class="num">3</span></td><td>Input</td><td>Ваш <b>микрофон</b> (USB-микрофон или вход звуковой карты). Скажите что-нибудь — полоска рядом должна шевелиться.</td></tr>
+  <tr><td><span class="num">4</span></td><td>Audio buffer size</td><td>Не трогайте. Только если звук <b>трещит</b> — выберите число побольше (например 256 → 512).</td></tr>
+</table>
+<p>Закройте окно крестиком. <b>Программа всё запомнит</b> — в следующий раз просто запускайте её. Открыть это окно снова можно кнопкой <b>AUDIO</b> (см. раздел 6).</p>
+
+<h2 class="page"><span class="n">5</span>Как пользоваться — за 10 секунд</h2>
+<ol>
+  <li>Запустите программу.</li>
+  <li>Нажмите на <b>голос</b> (большую плитку), который подходит к мероприятию.</li>
+  <li>Говорите. Всё.</li>
+</ol>
+<img src="img/app-start.png" class="shot" style="width:70%;margin:8px auto">
+<div class="cap">Так программа выглядит при запуске: только голоса и главные кнопки. Цифры — пояснения ниже.</div>
+<table>
+  <tr><th style="width:44px">№</th><th style="width:150px">Что это</th><th>Зачем</th></tr>
+  <tr><td><span class="num">1</span></td><td>Голоса (пресеты)</td><td>10 готовых звучаний. Нажали — голос сразу звучит так. Горит оранжевым — выбран сейчас. Клавиши <span class="key">1</span>…<span class="key">9</span>, <span class="key">0</span> выбирают их по порядку.</td></tr>
+  <tr><td><span class="num">2</span></td><td>IN / OUT</td><td>Полоски громкости: <b>IN</b> — что слышит микрофон, <b>OUT</b> — что уходит в колонки. Должны «прыгать», когда говорите. Если загораются <b>красным</b> — слишком громко.</td></tr>
+  <tr><td><span class="num">3</span></td><td>CLIP</td><td>Делает голос плотнее и «пробивнее», как на радио. Громче от этого не становится. Голоса сами его включают, где нужно. Клавиша <span class="key">C</span>.</td></tr>
+  <tr><td><span class="num">4</span></td><td>ON (кнопка питания)</td><td>Включает и выключает обработку. <b>Выключено — в колонки идёт обычный микрофон</b>, без улучшений. Удобно сравнить «до» и «после». Клавиша <span class="key">Пробел</span>.</td></tr>
+  <tr><td><span class="num">5</span></td><td>AUDIO</td><td>Открывает окно выбора микрофона и колонок (раздел 4).</td></tr>
+  <tr><td><span class="num">6</span></td><td>MUTE</td><td><b>Мгновенно глушит</b> звук (кнопка становится красной). Нажмите ещё раз — звук вернётся. Клавиша <span class="key">M</span>.</td></tr>
+  <tr><td><span class="num">7</span></td><td>Вкладка «SHOW PITCH &amp; EFFECTS»</td><td>Открывает дополнительные настройки (раздел 7). Обычно не нужна. Клавиша <span class="key">H</span>.</td></tr>
+</table>
+
+<h2 class="page"><span class="n">6</span>Какой голос выбрать</h2>
+<p>Первые четыре — <b>ваш обычный голос</b>, только лучше. Остальные шесть — голос <b>чуть ниже и солиднее</b>, по нарастающей.</p>
+<table>
+  <tr><th style="width:105px">Голос</th><th>Как звучит</th><th style="width:210px">Когда подходит</th></tr>
+  <tr><td><b>CLEAN</b></td><td>Ваш голос, только чище и аккуратнее. Самый естественный.</td><td>Свадьбы, банкеты, конференции, тихие залы</td></tr>
+  <tr><td><b>RADIO</b></td><td>Плотный голос радиоведущего.</td><td>Почти везде, хороший выбор «по умолчанию»</td></tr>
+  <tr><td><b>CLUB MC</b></td><td>Максимально разборчивый, прорезает громкую музыку.</td><td>Клуб, громкая музыка, танцпол</td></tr>
+  <tr><td><b>HYPE MC</b></td><td>Как CLUB MC + лёгкое эхо на концах фраз.</td><td>Объявления в клубе, «раскачать» зал</td></tr>
+  <tr><td><b>WARM</b></td><td>Мягкий, бархатный, чуть ниже.</td><td>Медленные моменты, романтика</td></tr>
+  <tr><td><b>DEEP</b></td><td>Глубокий голос диктора.</td><td>Официальные объявления</td></tr>
+  <tr><td><b>BIG HOST</b></td><td>Большой «стадионный» голос, шире и ниже.</td><td>Выход артистов, торжественные моменты</td></tr>
+  <tr><td><b>TRAILER</b></td><td>Голос из трейлера фильма: ниже, с весом и лёгким эхом.</td><td>Интро, «барабанная дробь», анонсы</td></tr>
+  <tr><td><b>GIANT</b></td><td>Тяжёлый, тёмный, заметно ниже.</td><td>Шоу-моменты, конкурсы</td></tr>
+  <tr><td><b>TITAN</b></td><td>Самый низкий и массивный.</td><td>Короткие эффектные фразы</td></tr>
+</table>
+<div class="tip"><b>Совет:</b> не знаете, что выбрать — ставьте <b>RADIO</b>. В очень громком клубе — <b>CLUB MC</b>.</div>
+
+<h2 class="page"><span class="n">7</span>Дополнительные настройки (по желанию)</h2>
+<p>Если хочется поиграть со звуком, нажмите на вкладку справа <b>«SHOW PITCH &amp; EFFECTS»</b> (или клавишу <span class="key">H</span>). Откроется ещё одна панель:</p>
+<img src="img/app-full.png" class="shot" style="width:78%;margin:8px auto">
+<table>
+  <tr><th style="width:44px">№</th><th style="width:150px">Что это</th><th>Как пользоваться</th></tr>
+  <tr><td><span class="num">8</span></td><td>Ручка PITCH</td><td>Делает голос <b>ниже</b> (влево) или <b>выше</b> (вправо). Её можно крутить прямо во время речи — для эффекта. Двойной щелчок по ручке — вернуть как было в голосе. Клавиши <span class="key">↑</span> <span class="key">↓</span> — по шагу.</td></tr>
+  <tr><td><span class="num">9</span></td><td>HIDE</td><td>Спрятать эту панель обратно.</td></tr>
+  <tr><td><span class="num">10</span></td><td>Эффекты</td><td>Нажали — включили (кнопка светится), ещё раз — выключили. Можно включать несколько сразу.<br>
+    <b>WIDE</b> — голос «шире» и приятнее (есть почти во всех голосах понемногу).<br>
+    <b>SHIMMER</b> — «сияние» над голосом. Красиво для коротких моментов, речь при нём менее разборчива.<br>
+    <b>ECHO</b> — эхо: последнее слово «улетает» в зал. Пока вы говорите, эхо тише.<br>
+    <b>BRUTAL</b> — добавляет голосу «вес» и лёгкую хрипотцу.</td></tr>
+  <tr><td><span class="num">11</span></td><td>Полоски под эффектами</td><td>Сила эффекта: тянете вправо — сильнее, влево — слабее.</td></tr>
+</table>
+<div class="ok">Запутались? Просто <b>нажмите на любой голос</b> слева — всё вернётся к его готовой настройке.</div>
+<p class="small">Если ручку PITCH сдвинули, а панель спрятали — на вкладке справа будет видна надпись «PITCH» с числом. Так понижение никогда не «прячется».</p>
+
+<h2 class="page"><span class="n">8</span>Как сделать, чтобы не было писка (свиста)</h2>
+<p>Писк (свист, «завязка») появляется, когда <b>микрофон слышит колонку</b>: колонка играет микрофон, микрофон снова слышит колонку — и звук идёт по кругу. Это не поломка программы, а законы звука. Правила:</p>
+<ul>
+  <li><b>Колонки — перед вами</b>, а вы с микрофоном — <b>за линией колонок</b>. Никогда не направляйте микрофон на колонку.</li>
+  <li><b>Говорите близко к микрофону</b> (5–10 см). Тогда громкость на пульте можно держать ниже.</li>
+  <li>Мониторы (колонки «на себя») ставьте <b>сбоку или сзади</b> микрофона, а не прямо перед ним.</li>
+  <li>Динамический микрофон (как Shure SM58) пищит гораздо меньше, чем «студийный».</li>
+  <li><b>Дома для проверки слушайте в наушниках</b> — тогда писка не будет вообще.</li>
+</ul>
+<div class="warn"><b>Если засвистело:</b> сразу нажмите <b>MUTE</b> (или клавишу <span class="key">M</span>), уберите громкость на пульте или отведите микрофон от колонок, потом снова нажмите MUTE.</div>
+<h3>Чтобы голос не звучал «дважды»</h3>
+<p>Windows умеет сама выводить микрофон в колонки — тогда вы слышите себя дважды: обычный голос и обработанный (с небольшим «эхом»). Отключите это:</p>
+<ol>
+  <li>Пуск → <b>Параметры</b> → <b>Система</b> → <b>Звук</b>.</li>
+  <li>Выберите ваш микрофон → <b>Свойства</b> → <b>Дополнительные свойства устройства</b>.</li>
+  <li>Вкладка <b>«Прослушать»</b> → <b>снимите галочку</b> «Прослушивать с данного устройства» → OK.</li>
+</ol>
+<p>Также убедитесь, что микрофон не идёт в пульт <b>напрямую</b> параллельно с программой.</p>
+
+<h2 class="page"><span class="n">9</span>Если что-то не работает</h2>
+<table>
+  <tr><th style="width:190px">Что случилось</th><th>Что сделать</th></tr>
+  <tr><td><b>Нет звука, полоска IN не шевелится</b></td><td>Выбран не тот микрофон. Нажмите <b>AUDIO</b> → в строке <b>Input</b> выберите свой микрофон. Проверьте, что микрофон включён и подключён. В Windows: Параметры → Конфиденциальность → Микрофон → разрешить доступ приложениям.</td></tr>
+  <tr><td><b>IN шевелится, а OUT нет</b></td><td>Нажат <b>MUTE</b> (горит красным) — нажмите его ещё раз.</td></tr>
+  <tr><td><b>OUT шевелится, но не слышно</b></td><td>Выбран не тот выход. <b>AUDIO</b> → строка <b>Output</b> → выберите наушники / колонки / звуковую карту. Проверьте громкость на пульте и в Windows.</td></tr>
+  <tr><td><b>Свистит</b></td><td>См. раздел 8: <b>MUTE</b>, тише, микрофон от колонок.</td></tr>
+  <tr><td><b>Голос звучит дважды или с «эхом»</b></td><td>Отключите «Прослушивать с данного устройства» (раздел 8). Проверьте, что эффект <b>ECHO</b> выключен, если эхо не нужно.</td></tr>
+  <tr><td><b>Звук трещит, щёлкает</b></td><td><b>AUDIO</b> → <b>Audio buffer size</b> → выберите число побольше. Закройте лишние программы. Ноутбук — от сети.</td></tr>
+  <tr><td><b>Голос тихий</b></td><td>Программа сама подтягивает тихий микрофон за несколько секунд речи. Если всё равно тихо — добавьте громкость на пульте или громкость микрофона в Windows.</td></tr>
+  <tr><td><b>Слишком громко, OUT красный</b></td><td>Уменьшите громкость на пульте. Программа не даст перегрузить звук, но лучше без красного.</td></tr>
+  <tr><td><b>Голос странно низкий</b></td><td>Нажмите на голос <b>CLEAN</b> или <b>RADIO</b> — понижение сбросится.</td></tr>
+  <tr><td><b>Первые секунды слышен фон / шум</b></td><td>Нормально: программе нужно 1–2 секунды, чтобы «услышать» шум зала. Дальше в паузах будет тихо.</td></tr>
+  <tr><td><b>Программа не открывается</b></td><td>Возможно, она уже открыта (работать может только одна). Посмотрите на панели задач внизу.</td></tr>
+  <tr><td><b>Всё сломалось, хочу как в первый раз</b></td><td>Закройте программу. Нажмите <span class="key">Win</span>+<span class="key">R</span>, введите <b>%APPDATA%</b>, Enter. Откройте папку <b>LIVE VOICE</b> и удалите файл <b>LIVE VOICE.settings</b>. Запустите программу — она откроется как в первый раз.</td></tr>
+</table>
+
+<h2 class="page"><span class="n">10</span>Шпаргалка (можно распечатать)</h2>
+<table class="cheat">
+  <tr><th style="width:200px">Хочу…</th><th>Что нажать</th></tr>
+  <tr><td>Выбрать голос</td><td>Плитку с голосом · клавиши <span class="key">1</span>…<span class="key">9</span>, <span class="key">0</span></td></tr>
+  <tr><td>Не знаю, какой</td><td><b>RADIO</b> (в громком клубе — <b>CLUB MC</b>)</td></tr>
+  <tr><td>Срочно выключить звук</td><td><b>MUTE</b> · <span class="key">M</span></td></tr>
+  <tr><td>Сравнить «до / после»</td><td><b>ON</b> (кнопка питания) · <span class="key">Пробел</span></td></tr>
+  <tr><td>Голос плотнее</td><td><b>CLIP</b> · <span class="key">C</span></td></tr>
+  <tr><td>Голос ниже / выше</td><td>Вкладка справа → ручка <b>PITCH</b> · <span class="key">↑</span> <span class="key">↓</span></td></tr>
+  <tr><td>Эхо, ширина и т.п.</td><td>Вкладка справа → кнопки эффектов</td></tr>
+  <tr><td>Спрятать / показать настройки</td><td><b>HIDE</b> / вкладка справа · <span class="key">H</span></td></tr>
+  <tr><td>Сменить микрофон / колонки</td><td><b>AUDIO</b></td></tr>
+  <tr><td>Всё вернуть как было</td><td>Нажать на любой голос</td></tr>
+</table>
+<div class="warn" style="margin-top:16px"><b>Засвистело?</b> → <b>MUTE</b> → тише на пульте / микрофон от колонок → снова <b>MUTE</b>.</div>
+<div class="tip"><b>Перед мероприятием (1 минута):</b> запустить программу → проверить, что <b>IN</b> и <b>OUT</b> шевелятся → выбрать голос → сказать пару фраз в колонки.</div>
+<p class="small" style="margin-top:24px">LIVE VOICE 0.16 · Thematic</p>
+
+</body>
+</html>

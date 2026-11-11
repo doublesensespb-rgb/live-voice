@@ -56,6 +56,7 @@ jobs:
           New-Item -ItemType Directory -Force out | Out-Null
           Copy-Item "build/LiveVoice_artefacts/Release/Standalone/LIVE VOICE.exe" out/
           Copy-Item "docs/README-RU.txt" out/
+          Copy-Item "docs/LIVE-VOICE-*.pdf" out/
           Compress-Archive -Path out/* -DestinationPath "LIVE-VOICE-$label-Windows.zip" -Force
           Get-ChildItem *.zip
 

@@ -1,6 +1,6 @@
 # LIVE VOICE (repo: live-voice) — guide for AI agents and developers
 
-Read this whole file before changing anything. Current version: **0.13** (`set(LIVEVOICE_LABEL "0.13")` + `project(... VERSION 0.1.3)` in CMakeLists.txt).
+Read this whole file before changing anything. Current version: **0.14** (`set(LIVEVOICE_LABEL "0.14")` + `project(... VERSION 0.1.4)` in CMakeLists.txt).
 
 ## 1. Product
 
@@ -82,6 +82,9 @@ v0.13: effects together (params wideOn/wideAmt, shimOn/shimAmt, echoOn/echoAmt, 
 legacy, ignored), `kVoices[].fx[4]`; mono-safe WIDE (test 9); BRUTAL rebuilt (no octave-down; test 10); PITCH + EFFECTS in one
 module `controlsPanel` with HIDE (top-right) / vertical SHOW tab, key H, state property `showControls` (default false =
 presets only on first start).
+v0.14 (client: presets lowered the voice too hard into the lows): param `formant` range -6..+6; presets WARM -1, DEEP -2,
+TRAILER -3, BIG HOST -3, GIANT -4, TITAN -6; DEEP mode body +2.5 dB / mud -3.5 / HPF 80; HPF += 5 Hz per semitone down;
+BRUTAL chest +3 dB, mass layer 3..4.5 st lower; no numbers on the tiles (only the depth bar). Keep presets 'commercial'.
 
 ## 6. How it was made
 Built by the owner talking to Claude (Anthropic) in a claude.ai session; the owner described, Claude wrote the code,

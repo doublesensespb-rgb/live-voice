@@ -393,9 +393,6 @@ void VoiceTile::paintButton (Graphics& g, bool over, bool)
         auto led = Rectangle<float> (9, 9).withCentre ({ r.getX() + 22.0f, r.getY() + 24.0f });
         if (on) { g.setColour (Palette::accent.withAlpha (0.25f)); g.fillEllipse (led.expanded (4)); g.setColour (Palette::glow); g.fillEllipse (led); }
         else { g.setColour (Palette::textDim.withAlpha (0.7f)); g.drawEllipse (led.reduced (0.6f), 1.2f); }
-        g.setColour (v.pitch < 0 ? (on ? Palette::glow : Palette::accent) : Palette::textDim);
-        g.setFont (uiFont (15.0f, true));
-        g.drawText (v.pitch < 0 ? String (roundToInt (v.pitch)) : String ("0"), r.toNearestInt().withHeight (48).reduced (16, 0), Justification::centredRight);
         g.setColour (on ? Palette::glow : Palette::text);
         g.setFont (uiFont (21.0f, true, 0.10f));
         g.drawText (v.name, r.toNearestInt().withSizeKeepingCentre ((int) r.getWidth() - 12, 30).translated (0, -10), Justification::centred);
@@ -423,12 +420,9 @@ void VoiceTile::paintButton (Graphics& g, bool over, bool)
     // how much lower: a small depth bar + number
     auto tag = r.toNearestInt().removeFromRight (60).reduced (10, 0);
     const float depth = jlimit (0.0f, 1.0f, -v.pitch / 6.0f);
-    auto bar = Rectangle<float> ((float) tag.getX(), r.getCentreY() + 8.0f, (float) tag.getWidth(), 3.0f);
+    auto bar = Rectangle<float> ((float) tag.getX(), r.getCentreY() - 1.5f, (float) tag.getWidth(), 3.0f);
     g.setColour (Colours::white.withAlpha (0.08f)); g.fillRoundedRectangle (bar, 1.5f);
     if (depth > 0) { g.setColour (on ? Palette::glow : Palette::accent.withAlpha (0.8f)); g.fillRoundedRectangle (bar.withWidth (jmax (3.0f, bar.getWidth() * depth)), 1.5f); }
-    g.setColour (v.pitch < 0 ? (on ? Palette::glow : Palette::accent) : Palette::textDim);
-    g.setFont (uiFont (13.0f, true));
-    g.drawText (v.pitch < 0 ? String (roundToInt (v.pitch)) : String ("0"), tag.withBottom ((int) r.getCentreY() + 4), Justification::centredRight);
 }
 
 // ============================================================================
@@ -594,8 +588,6 @@ void LiveVoiceEditor::paint (Graphics& g)
 
     // VOICE PRESETS
     caption (g, "VOICE PRESETS", Rectangle<int> (voicePanel.getX() + 22, voicePanel.getY() + 14, 200, 24), Justification::centredLeft, Palette::text, 14.0f);
-    g.setColour (Palette::textDim); g.setFont (uiFont (11.0f));
-    g.drawText ("number = how much lower", Rectangle<int> (voicePanel.getRight() - 222, voicePanel.getY() + 14, 200, 24), Justification::centredRight);
 
     if (showControls())
     {

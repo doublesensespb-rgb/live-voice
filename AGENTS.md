@@ -1,6 +1,6 @@
 # LIVE VOICE (repo: live-voice) — guide for AI agents and developers
 
-Read this whole file before changing anything. Current version: **0.14** (`set(LIVEVOICE_LABEL "0.14")` + `project(... VERSION 0.1.4)` in CMakeLists.txt).
+Read this whole file before changing anything. Current version: **0.15** (`set(LIVEVOICE_LABEL "0.15")` + `project(... VERSION 0.1.5)` in CMakeLists.txt).
 
 ## 1. Product
 
@@ -85,6 +85,12 @@ presets only on first start).
 v0.14 (client: presets lowered the voice too hard into the lows): param `formant` range -6..+6; presets WARM -1, DEEP -2,
 TRAILER -3, BIG HOST -3, GIANT -4, TITAN -6; DEEP mode body +2.5 dB / mud -3.5 / HPF 80; HPF += 5 Hz per semitone down;
 BRUTAL chest +3 dB, mass layer 3..4.5 st lower; tiles show only name + hint (no numbers, no depth bar - client). Keep presets 'commercial'.
+v0.15 (owner video: CLEAN sounded lowered, some presets 'overloaded / hum'): ON/OFF = full bypass (`Params::bypass`, raw mic,
+0 ms, test 11); the selected tile is re-applied on every start (`applyVoicePreset` in setStateInformation; a PITCH left
+turned last time had lowered CLEAN invisibly) and MUTE resets; hidden tab shows a PITCH badge when it differs from the
+preset. Softer sound: modes retuned (lower ratios, almost no warmth), comp attack 8 ms, makeup x0.4, AGC max +8, CLIP
++4 dB (was +8) and only in RADIO/CLUB MC/HYPE MC, BRUTAL mass x1.0 / grit x0.6, mud cut -0.5 dB per semitone down.
+Measured THD at a loud 220 Hz tone: TRAILER 10.2% -> 2.0%, TITAN 6.0 -> 1.0, DEEP 3.9 -> 0.1.
 
 ## 6. How it was made
 Built by the owner talking to Claude (Anthropic) in a claude.ai session; the owner described, Claude wrote the code,

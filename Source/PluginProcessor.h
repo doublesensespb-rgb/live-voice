@@ -41,12 +41,12 @@ inline const VoicePreset kVoices[kNumVoices] =
     { "CLEAN",    "natural, just better",   0, 0.60f,   0.0f, false, { 0.00f, 0.0f, 0.00f, 0.00f } },
     { "RADIO",    "dense FM host",          1, 0.85f,   0.0f, true,  { 0.20f, 0.0f, 0.00f, 0.00f } },
     { "CLUB MC",  "cuts through music",     2, 0.85f,   0.0f, true,  { 0.20f, 0.0f, 0.00f, 0.00f } },
-    { "WARM",     "close & velvet",         3, 0.70f,  -2.0f, false, { 0.25f, 0.0f, 0.00f, 0.00f } },
-    { "DEEP",     "deep announcer",         3, 0.80f,  -4.0f, true,  { 0.25f, 0.0f, 0.00f, 0.00f } },
-    { "BIG HOST", "huge stadium voice",     1, 0.90f,  -6.0f, true,  { 0.30f, 0.0f, 0.00f, 0.00f } },
-    { "GIANT",    "heavy & dark",           3, 0.85f,  -9.0f, true,  { 0.20f, 0.0f, 0.00f, 0.25f } },
-    { "TITAN",    "lowest, massive",        1, 0.90f, -12.0f, true,  { 0.20f, 0.0f, 0.00f, 0.35f } },
-    { "TRAILER",  "movie trailer voice",    1, 0.90f,  -5.0f, true,  { 0.25f, 0.0f, 0.15f, 0.50f } },
+    { "WARM",     "close & velvet",         3, 0.70f,  -1.0f, false, { 0.25f, 0.0f, 0.00f, 0.00f } },
+    { "DEEP",     "deep announcer",         3, 0.80f,  -2.0f, true,  { 0.25f, 0.0f, 0.00f, 0.00f } },
+    { "BIG HOST", "huge stadium voice",     1, 0.90f,  -3.0f, true,  { 0.30f, 0.0f, 0.00f, 0.00f } },
+    { "GIANT",    "heavy & dark",           3, 0.85f,  -4.0f, true,  { 0.20f, 0.0f, 0.00f, 0.25f } },
+    { "TITAN",    "lowest, massive",        1, 0.90f,  -6.0f, true,  { 0.20f, 0.0f, 0.00f, 0.35f } },
+    { "TRAILER",  "movie trailer voice",    1, 0.90f,  -3.0f, true,  { 0.25f, 0.0f, 0.15f, 0.50f } },
     { "HYPE MC",  "club host + echo",       2, 0.85f,   0.0f, true,  { 0.25f, 0.0f, 0.40f, 0.00f } },
 };
 

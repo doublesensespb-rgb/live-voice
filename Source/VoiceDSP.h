@@ -138,7 +138,7 @@ inline const ModeSpec kModes[4] =
     { "NATURAL", "clean & even",        90.0f, -2.0f, 320.0f, -22.0f, 2.5f, 1.0f, 140.0f, 2.5f, 4200.0f, 1.0f, 0.55f, 0.10f },
     { "RADIO",   "dense FM host",       80.0f, -3.5f, 340.0f, -30.0f, 5.0f, 3.5f, 130.0f, 3.5f, 3600.0f, 1.5f, 0.80f, 0.35f },
     { "CLUB",    "cuts through music", 140.0f, -4.0f, 300.0f, -32.0f, 6.0f, 0.0f, 150.0f, 5.0f, 3000.0f, 2.0f, 0.90f, 0.30f },
-    { "DEEP",    "warm & low",          60.0f, -2.5f, 420.0f, -26.0f, 3.5f, 4.5f, 110.0f, 1.5f, 4000.0f, -1.0f, 0.60f, 0.25f },
+    { "DEEP",    "warm & low",          80.0f, -3.5f, 380.0f, -26.0f, 3.5f, 2.5f, 120.0f, 2.0f, 4000.0f, -0.5f, 0.60f, 0.25f },
 };
 
 struct SfxSpec { const char* name; const char* hint; };
@@ -318,7 +318,7 @@ private:
     std::vector<float> gateBuf;
     AdaaClipper clipL, clipR; float clipMix = 0;
     float lfoPhase[4] { 0.0f, 0.25f, 0.5f, 0.75f };
-    int lastMode = -1; float lastStrength = -1;
+    int lastMode = -1; float lastStrength = -1, lastHpfFormant = 0;
     float chL = 0, chR = 0;   // input channel energy (picks the live channel of a mono USB mic)
     float peakIn = 0, peakOut = 0; int meterCount = 0;
 
@@ -326,7 +326,9 @@ private:
     {
         const auto& m = kModes[std::clamp (cur.mode, 0, 3)];
         const float s = cur.strength;
-        hpf1.hp (fs, m.hpf, 0.54f); hpf2.hp (fs, m.hpf, 1.31f);           // 4th order Butterworth
+        const float hf = m.hpf + 5.0f * std::clamp (-cur.formant, 0.0f, 6.0f);   // lowered voice -> cut the boom a bit higher
+        hpf1.hp (fs, hf, 0.54f); hpf2.hp (fs, hf, 1.31f);           // 4th order Butterworth
+        lastHpfFormant = cur.formant;
         mud.peak (fs, m.mudHz, 1.0f, m.mudDb * s);
         body.lowShelf (fs, m.bodyHz, m.bodyDb * s);
         pres.peak (fs, m.presHz, 0.8f, m.presDb * s);
@@ -344,7 +346,7 @@ private:
 
     void processChunk (const float* inL, const float* inR, float* outL, float* outR, int n)
     {
-        if (cur.mode != lastMode || std::abs (cur.strength - lastStrength) > 0.001f) updateFilters();
+        if (cur.mode != lastMode || std::abs (cur.strength - lastStrength) > 0.001f || std::abs (cur.formant - lastHpfFormant) > 0.25f) updateFilters();
         const auto& m = kModes[std::clamp (cur.mode, 0, 3)];
         const float s = cur.strength;
 
@@ -424,7 +426,7 @@ private:
         demonMix = demonTarget + (demonMix - demonTarget) * coefMs (40.0f, fs / n);
         if (demonMix > 0.001f || demonActive)
         {
-            demon.setShift (pitchSm, formantSm - 5.0f - 2.0f * demonMix);
+            demon.setShift (pitchSm, formantSm - 3.0f - 1.5f * demonMix);
             demon.process (mono.data(), demonBuf.data(), n);
             const float cA = coefMs (5.0f, fs), cR = coefMs (120.0f, fs), thr = 0.08f;
             for (int i = 0; i < n; ++i)
@@ -459,7 +461,7 @@ private:
         const float aC = coefMs (3.0f, fs), rC = coefMs (130.0f, fs);
         const float aD = coefMs (1.0f, fs), rD = coefMs (60.0f, fs);
         const float warm = m.warmth * s;
-        if (std::abs (demonMix - lastChest) > 0.01f) { chest.lowShelf (fs, 110.0f, 6.0f * demonMix); lastChest = demonMix; }
+        if (std::abs (demonMix - lastChest) > 0.01f) { chest.lowShelf (fs, 110.0f, 3.0f * demonMix); lastChest = demonMix; }
         const float gk = 2.0f + 6.0f * demonMix, gBias = 0.12f, gSlope = 1.0f - std::tanh (gk * gBias) * std::tanh (gk * gBias);
         float grMax = 0;
         for (int i = 0; i < n; ++i)

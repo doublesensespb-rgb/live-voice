@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
-project(LiveVoice VERSION 0.1.3)
+project(LiveVoice VERSION 0.1.4)
 # Version shown in the app and in file names (0.1, 0.11, 0.12 ...)
-set(LIVEVOICE_LABEL "0.13")
+set(LIVEVOICE_LABEL "0.14")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

@@ -17,8 +17,8 @@ int main (int argc, char** argv)
     const File dir (argc > 1 ? File::getCurrentWorkingDirectory().getChildFile (argv[1]) : File::getCurrentWorkingDirectory());
     dir.createDirectory();
     struct Shot { const char* name; int voice; float knob; bool hidden; };
-    const Shot shots[] = { { "ui-default", 1, 0.0f, false }, { "ui-trailer", 8, -5.0f, false }, { "ui-big-host", 5, -6.0f, false },
-                           { "ui-titan-played", 7, -8.5f, false }, { "ui-hype", 9, 0.0f, false }, { "ui-hidden", 4, -4.0f, true } };
+    const Shot shots[] = { { "ui-default", 1, 0.0f, false }, { "ui-trailer", 8, -3.0f, false }, { "ui-big-host", 5, -3.0f, false },
+                           { "ui-titan-played", 7, -4.5f, false }, { "ui-hype", 9, 0.0f, false }, { "ui-hidden", 4, -2.0f, true } };
     for (auto& s : shots)
     {
         LiveVoiceProcessor proc;

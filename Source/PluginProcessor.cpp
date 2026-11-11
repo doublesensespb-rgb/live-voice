@@ -31,7 +31,7 @@ AudioProcessorValueTreeState::ParameterLayout LiveVoiceProcessor::createLayout()
     // 0.11: "pitch" (note shift) is legacy and ignored; the PITCH knob in the UI is the "formant" parameter (voice size)
     v.push_back (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::pitch, 1 }, "Note Shift (legacy)", NormalisableRange<float> (-12.0f, 12.0f, 0.01f), 0.0f,
                                                         AudioParameterFloatAttributes().withStringFromValueFunction (semis)));
-    v.push_back (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::formant, 1 }, "Pitch", NormalisableRange<float> (-12.0f, 12.0f, 0.01f), 0.0f,
+    v.push_back (std::make_unique<AudioParameterFloat> (ParameterID { ParamID::formant, 1 }, "Pitch", NormalisableRange<float> (-6.0f, 6.0f, 0.01f), 0.0f,
                                                         AudioParameterFloatAttributes().withStringFromValueFunction (semis)));
     v.push_back (std::make_unique<AudioParameterBool>  (ParameterID { ParamID::sfxOn, 1 }, "SFX", false));
     v.push_back (std::make_unique<AudioParameterChoice> (ParameterID { ParamID::sfxType, 1 }, "SFX Type", sfx, 0));

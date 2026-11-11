@@ -402,7 +402,7 @@ void VoiceTile::paintButton (Graphics& g, bool over, bool)
         g.setColour (on ? Palette::accent.withAlpha (0.85f) : Palette::textDim);
         g.setFont (uiFont (12.5f));
         g.drawText (v.hint, r.toNearestInt().withSizeKeepingCentre ((int) r.getWidth() - 12, 20).translated (0, 18), Justification::centred);
-        const float depth = jlimit (0.0f, 1.0f, -v.pitch / 12.0f);
+        const float depth = jlimit (0.0f, 1.0f, -v.pitch / 6.0f);
         auto bar = Rectangle<float> (r.getX() + 20.0f, r.getBottom() - 26.0f, r.getWidth() - 40.0f, 4.0f);
         g.setColour (Colours::white.withAlpha (0.08f)); g.fillRoundedRectangle (bar, 2.0f);
         if (depth > 0) { g.setColour (on ? Palette::glow : Palette::accent.withAlpha (0.8f)); g.fillRoundedRectangle (bar.withWidth (jmax (4.0f, bar.getWidth() * depth)), 2.0f); }
@@ -422,7 +422,7 @@ void VoiceTile::paintButton (Graphics& g, bool over, bool)
     g.drawText (v.hint, t.translated (0, 2), Justification::topLeft);
     // how much lower: a small depth bar + number
     auto tag = r.toNearestInt().removeFromRight (60).reduced (10, 0);
-    const float depth = jlimit (0.0f, 1.0f, -v.pitch / 12.0f);
+    const float depth = jlimit (0.0f, 1.0f, -v.pitch / 6.0f);
     auto bar = Rectangle<float> ((float) tag.getX(), r.getCentreY() + 8.0f, (float) tag.getWidth(), 3.0f);
     g.setColour (Colours::white.withAlpha (0.08f)); g.fillRoundedRectangle (bar, 1.5f);
     if (depth > 0) { g.setColour (on ? Palette::glow : Palette::accent.withAlpha (0.8f)); g.fillRoundedRectangle (bar.withWidth (jmax (3.0f, bar.getWidth() * depth)), 1.5f); }
@@ -557,8 +557,8 @@ bool LiveVoiceEditor::keyPressed (const KeyPress& k)
     const auto ch = k.getTextCharacter();
     if (k == KeyPress::spaceKey) { setParam (ParamID::voiceOn, getParam (ParamID::voiceOn) > 0.5f ? 0.0f : 1.0f); return true; }
     if (ch == 'm' || ch == 'M' || ch == L'ь' || ch == L'Ь') { setParam (ParamID::mute, getParam (ParamID::mute) > 0.5f ? 0.0f : 1.0f); return true; }
-    if (k == KeyPress::upKey)   { setParam (ParamID::formant, jmin (12.0f, std::round (getParam (ParamID::formant)) + 1.0f)); return true; }
-    if (k == KeyPress::downKey) { setParam (ParamID::formant, jmax (-12.0f, std::round (getParam (ParamID::formant)) - 1.0f)); return true; }
+    if (k == KeyPress::upKey)   { setParam (ParamID::formant, jmin (6.0f, std::round (getParam (ParamID::formant)) + 1.0f)); return true; }
+    if (k == KeyPress::downKey) { setParam (ParamID::formant, jmax (-6.0f, std::round (getParam (ParamID::formant)) - 1.0f)); return true; }
     if (ch == 'c' || ch == 'C' || ch == L'с' || ch == L'С') { setParam (ParamID::clipOn, getParam (ParamID::clipOn) > 0.5f ? 0.0f : 1.0f); return true; }
     if (ch == 'h' || ch == 'H' || ch == L'р' || ch == L'Р') { setShowControls (! showControls()); return true; }
     if (ch >= '1' && ch <= '9') { selectVoice ((int) (ch - '1')); return true; }
@@ -610,7 +610,7 @@ void LiveVoiceEditor::paint (Graphics& g)
         const float rr = pitchKnob.getWidth() * 0.5f + 13.0f;
         g.setFont (uiFont (11.0f, true)); g.setColour (Palette::textDim);
         const float a0 = MathConstants<float>::pi * 1.25f, a1 = MathConstants<float>::pi * 2.75f;
-        const char* lbl[5] = { "-12", "-6", "0", "+6", "+12" };
+        const char* lbl[5] = { "-6", "-3", "0", "+3", "+6" };
         for (int i = 0; i < 5; ++i)
             g.drawText (lbl[i], Rectangle<float> (36, 16).withCentre (c.getPointOnCircumference (rr, a0 + (a1 - a0) * (float) i / 4.0f)).toNearestInt(), Justification::centred);
         caption (g, "LOWER", Rectangle<int> ((int) (c.x - rr - 36), (int) (c.y + rr * 0.78f), 72, 16), Justification::centred, Palette::textDim, 10.0f);

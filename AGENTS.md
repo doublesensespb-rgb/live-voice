@@ -84,7 +84,7 @@ module `controlsPanel` with HIDE (top-right) / vertical SHOW tab, key H, state p
 presets only on first start).
 v0.14 (client: presets lowered the voice too hard into the lows): param `formant` range -6..+6; presets WARM -1, DEEP -2,
 TRAILER -3, BIG HOST -3, GIANT -4, TITAN -6; DEEP mode body +2.5 dB / mud -3.5 / HPF 80; HPF += 5 Hz per semitone down;
-BRUTAL chest +3 dB, mass layer 3..4.5 st lower; no numbers on the tiles (only the depth bar). Keep presets 'commercial'.
+BRUTAL chest +3 dB, mass layer 3..4.5 st lower; tiles show only name + hint (no numbers, no depth bar - client). Keep presets 'commercial'.
 
 ## 6. How it was made
 Built by the owner talking to Claude (Anthropic) in a claude.ai session; the owner described, Claude wrote the code,

@@ -399,10 +399,6 @@ void VoiceTile::paintButton (Graphics& g, bool over, bool)
         g.setColour (on ? Palette::accent.withAlpha (0.85f) : Palette::textDim);
         g.setFont (uiFont (12.5f));
         g.drawText (v.hint, r.toNearestInt().withSizeKeepingCentre ((int) r.getWidth() - 12, 20).translated (0, 18), Justification::centred);
-        const float depth = jlimit (0.0f, 1.0f, -v.pitch / 6.0f);
-        auto bar = Rectangle<float> (r.getX() + 20.0f, r.getBottom() - 26.0f, r.getWidth() - 40.0f, 4.0f);
-        g.setColour (Colours::white.withAlpha (0.08f)); g.fillRoundedRectangle (bar, 2.0f);
-        if (depth > 0) { g.setColour (on ? Palette::glow : Palette::accent.withAlpha (0.8f)); g.fillRoundedRectangle (bar.withWidth (jmax (4.0f, bar.getWidth() * depth)), 2.0f); }
         return;
     }
     // LED
@@ -410,19 +406,13 @@ void VoiceTile::paintButton (Graphics& g, bool over, bool)
     if (on) { g.setColour (Palette::accent.withAlpha (0.25f)); g.fillEllipse (led.expanded (4)); g.setColour (Palette::glow); g.fillEllipse (led); }
     else { g.setColour (Palette::textDim.withAlpha (0.7f)); g.drawEllipse (led.reduced (0.6f), 1.2f); }
     // name + hint
-    auto t = r.toNearestInt().withTrimmedLeft (36).withTrimmedRight (62).reduced (0, 10);
+    auto t = r.toNearestInt().withTrimmedLeft (36).withTrimmedRight (12).reduced (0, 10);
     g.setColour (on ? Palette::glow : Palette::text);
     g.setFont (uiFont (16.0f, true, 0.10f));
     g.drawText (v.name, t.removeFromTop (t.getHeight() / 2 + 1), Justification::bottomLeft);
     g.setColour (on ? Palette::accent.withAlpha (0.85f) : Palette::textDim);
     g.setFont (uiFont (11.5f, false, 0.02f));
     g.drawText (v.hint, t.translated (0, 2), Justification::topLeft);
-    // how much lower: a small depth bar + number
-    auto tag = r.toNearestInt().removeFromRight (60).reduced (10, 0);
-    const float depth = jlimit (0.0f, 1.0f, -v.pitch / 6.0f);
-    auto bar = Rectangle<float> ((float) tag.getX(), r.getCentreY() - 1.5f, (float) tag.getWidth(), 3.0f);
-    g.setColour (Colours::white.withAlpha (0.08f)); g.fillRoundedRectangle (bar, 1.5f);
-    if (depth > 0) { g.setColour (on ? Palette::glow : Palette::accent.withAlpha (0.8f)); g.fillRoundedRectangle (bar.withWidth (jmax (3.0f, bar.getWidth() * depth)), 1.5f); }
 }
 
 // ============================================================================
